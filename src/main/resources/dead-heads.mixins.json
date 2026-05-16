@@ -1,0 +1,11 @@
+{
+	"required": true,
+	"package": "justfatlard.dead_heads.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+		"ServerPlayerDeathMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
