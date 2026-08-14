@@ -1,5 +1,6 @@
 package justfatlard.dead_heads;
 
+import net.minecraft.util.Prediction;
 import com.mojang.authlib.GameProfile;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -131,7 +132,7 @@ public class DeadHeadManager {
 		for (ItemStack stack : entry.items) {
 			if (!stack.isEmpty()) {
 				if (!serverPlayer.getInventory().add(stack.copy())) {
-					serverPlayer.drop(stack.copy(), false);
+					serverPlayer.drop(stack.copy(), false, Prediction.SERVER_ONLY);
 				}
 			}
 		}
@@ -142,7 +143,7 @@ public class DeadHeadManager {
 				new GameProfile(entry.ownerUuid, entry.ownerName)
 			));
 			if (!serverPlayer.getInventory().add(headItem)) {
-				serverPlayer.drop(headItem, false);
+				serverPlayer.drop(headItem, false, Prediction.SERVER_ONLY);
 			}
 		}
 
