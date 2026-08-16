@@ -15,6 +15,7 @@ public class Main implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		DeadHeadsConfig.load();
+		DeadHeadsGameRules.register();
 
 		ServerLifecycleEvents.SERVER_STARTED.register(DeadHeadManager::onServerStarted);
 		ServerLifecycleEvents.SERVER_STOPPING.register(DeadHeadManager::onServerStopping);

@@ -29,6 +29,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -58,18 +59,25 @@ public class DeadHeadManager {
 	}
 
 	static class DeadHeadEntry {
+		/** Null for mob heads: they belong to nobody, exactly like the item entities they replace. */
 		final UUID ownerUuid;
 		final String ownerName;
 		final List<ItemStack> items;
 		final long deathTimeMs;
+		final boolean mobHead;
 		boolean unlocked;
 
-		DeadHeadEntry(UUID ownerUuid, String ownerName, List<ItemStack> items, long deathTimeMs, boolean unlocked) {
+		DeadHeadEntry(UUID ownerUuid, String ownerName, List<ItemStack> items, long deathTimeMs, boolean mobHead, boolean unlocked) {
 			this.ownerUuid = ownerUuid;
 			this.ownerName = ownerName;
 			this.items = items;
 			this.deathTimeMs = deathTimeMs;
+			this.mobHead = mobHead;
 			this.unlocked = unlocked;
+		}
+
+		boolean isOwner(Player player) {
+			return ownerUuid != null && ownerUuid.equals(player.getUUID());
 		}
 	}
 
@@ -78,7 +86,13 @@ public class DeadHeadManager {
 
 		ServerLevel level = player.level();
 		BlockPos deathPos = player.blockPosition();
-		BlockPos headPos = findSafePosition(level, deathPos);
+		BlockPos headPos = findHeadPosition(level, deathPos, false);
+
+		if (headPos == null) {
+			dropItems(level, deathPos, items);
+			player.sendSystemMessage(Component.literal("No room for your head here, your items dropped on the ground"));
+			return;
+		}
 
 		int rotation = Mth.floor((player.getYRot() * 16.0F / 360.0F) + 0.5F) & 15;
 		BlockState headState = Blocks.PLAYER_HEAD.defaultBlockState().setValue(SkullBlock.ROTATION, rotation);
@@ -96,6 +110,7 @@ public class DeadHeadManager {
 			player.getGameProfile().name(),
 			items,
 			System.currentTimeMillis(),
+			false,
 			false
 		));
 		dirty = true;
@@ -103,6 +118,50 @@ public class DeadHeadManager {
 		player.sendSystemMessage(Component.literal(
 			"Your items are stored in your head at " + headPos.getX() + ", " + headPos.getY() + ", " + headPos.getZ()
 		));
+	}
+
+	/**
+	 * A player-killed mob's drops, placed as a head at the death spot instead of
+	 * scattered. Unlike a player head this one is unowned and never locked (mob
+	 * loot is free for all in vanilla too) and it rots on a timer, which is what
+	 * keeps a mob farm from carpeting the world in skulls.
+	 *
+	 * If there is nowhere to put the head the drops just fall as usual: better
+	 * plain vanilla than swallowed loot.
+	 */
+	public static void handleMobDeath(LivingEntity mob, List<ItemStack> items) {
+		if (items.isEmpty()) return;
+		if (!(mob.level() instanceof ServerLevel level)) return;
+
+		BlockPos deathPos = mob.blockPosition();
+		BlockPos headPos = findHeadPosition(level, deathPos, true);
+
+		if (headPos == null) {
+			dropItems(level, deathPos, items);
+			return;
+		}
+
+		int rotation = Mth.floor((mob.getYRot() * 16.0F / 360.0F) + 0.5F) & 15;
+		BlockState headState = MobHeads.headBlockFor(mob.getType())
+			.defaultBlockState()
+			.setValue(SkullBlock.ROTATION, rotation);
+		level.setBlock(headPos, headState, Block.UPDATE_ALL);
+
+		entries.put(keyFor(level, headPos), new DeadHeadEntry(
+			null,
+			mob.getName().getString(),
+			items,
+			System.currentTimeMillis(),
+			true,
+			true
+		));
+		dirty = true;
+	}
+
+	private static void dropItems(ServerLevel level, BlockPos pos, List<ItemStack> items) {
+		for (ItemStack stack : items) {
+			if (!stack.isEmpty()) Block.popResource(level, pos, stack.copy());
+		}
 	}
 
 	public static InteractionResult onUseBlock(Player player, Level world, InteractionHand hand, BlockHitResult hitResult) {
@@ -113,7 +172,7 @@ public class DeadHeadManager {
 		DeadHeadEntry entry = entries.get(key);
 		if (entry == null) return InteractionResult.PASS;
 
-		boolean isOwner = player.getUUID().equals(entry.ownerUuid);
+		boolean isOwner = entry.isOwner(player);
 
 		if (!entry.unlocked && !isOwner) {
 			long remainingMs = DeadHeadsConfig.getLockDurationMs() - (System.currentTimeMillis() - entry.deathTimeMs);
@@ -137,7 +196,9 @@ public class DeadHeadManager {
 			}
 		}
 
-		if (!isOwner) {
+		// The consolation trophy is a player-head thing: a mob head has no owner
+		// to bear, and handing out a skull per looted mob would be a free supply
+		if (!isOwner && !entry.mobHead) {
 			ItemStack headItem = new ItemStack(Items.PLAYER_HEAD);
 			headItem.set(DataComponents.PROFILE, ResolvableProfile.createResolved(
 				new GameProfile(entry.ownerUuid, entry.ownerName)
@@ -160,7 +221,7 @@ public class DeadHeadManager {
 		DeadHeadEntry entry = entries.get(keyFor(world, pos));
 		if (entry == null) return true;
 
-		if (!entry.unlocked && !player.getUUID().equals(entry.ownerUuid)) {
+		if (!entry.unlocked && !entry.isOwner(player)) {
 			player.sendSystemMessage(Component.literal("This head belongs to " + entry.ownerName));
 			return false;
 		}
@@ -174,12 +235,7 @@ public class DeadHeadManager {
 		DeadHeadEntry entry = entries.remove(keyFor(world, pos));
 		if (entry == null) return;
 
-		ServerLevel level = (ServerLevel) world;
-		for (ItemStack stack : entry.items) {
-			if (!stack.isEmpty()) {
-				Block.popResource(level, pos, stack.copy());
-			}
-		}
+		dropItems((ServerLevel) world, pos, entry.items);
 		dirty = true;
 	}
 
@@ -189,6 +245,7 @@ public class DeadHeadManager {
 
 		long now = System.currentTimeMillis();
 		long lockDuration = DeadHeadsConfig.getLockDurationMs();
+		long decayDuration = DeadHeadsConfig.getMobHeadDecayMs();
 
 		Iterator<Map.Entry<DimPos, DeadHeadEntry>> iter = entries.entrySet().iterator();
 		while (iter.hasNext()) {
@@ -200,17 +257,30 @@ public class DeadHeadManager {
 			ServerLevel level = server.getLevel(dimKey);
 			if (level == null) continue;
 
+			// getBlockState force-loads the chunk, and with mob heads there can be
+			// a lot of these, so heads in unloaded chunks wait their turn instead
+			if (!level.hasChunkAt(dimPos.pos())) continue;
+
 			BlockState state = level.getBlockState(dimPos.pos());
 			boolean isSkull = state.getBlock() instanceof SkullBlock;
 
 			if (!isSkull) {
-				for (ItemStack stack : entry.items) {
-					if (!stack.isEmpty()) {
-						Block.popResource(level, dimPos.pos(), stack.copy());
-					}
-				}
+				dropItems(level, dimPos.pos(), entry.items);
 				iter.remove();
 				dirty = true;
+				continue;
+			}
+
+			// A mob head rots: the loot is consumed and the ground gets it
+			// instead. Take the kill before it turns, or feed the garden.
+			if (entry.mobHead) {
+				if (decayDuration > 0 && (now - entry.deathTimeMs) >= decayDuration) {
+					int charges = MobHeads.fertilityCharges(entry.items);
+					level.removeBlock(dimPos.pos(), false);
+					MobHeads.fertilize(level, dimPos.pos(), charges);
+					iter.remove();
+					dirty = true;
+				}
 				continue;
 			}
 
@@ -271,7 +341,10 @@ public class DeadHeadManager {
 
 				String dimension = tag.getStringOr("dimension", "");
 				BlockPos pos = new BlockPos(tag.getIntOr("x", 0), tag.getIntOr("y", 0), tag.getIntOr("z", 0));
-				UUID ownerUuid = new UUID(tag.getLongOr("uuidMost", 0L), tag.getLongOr("uuidLeast", 0L));
+				boolean mobHead = tag.getBooleanOr("mobHead", false);
+				UUID ownerUuid = mobHead
+					? null
+					: new UUID(tag.getLongOr("uuidMost", 0L), tag.getLongOr("uuidLeast", 0L));
 				String ownerName = tag.getStringOr("ownerName", "");
 				long deathTime = tag.getLongOr("deathTime", 0L);
 				boolean unlocked = tag.getBooleanOr("unlocked", false);
@@ -285,7 +358,7 @@ public class DeadHeadManager {
 					}
 				}
 
-				entries.put(new DimPos(dimension, pos), new DeadHeadEntry(ownerUuid, ownerName, items, deathTime, unlocked));
+				entries.put(new DimPos(dimension, pos), new DeadHeadEntry(ownerUuid, ownerName, items, deathTime, mobHead, unlocked));
 			}
 
 			Main.LOGGER.info("[{}] Loaded {} death heads", Main.MOD_ID, entries.size());
@@ -310,10 +383,13 @@ public class DeadHeadManager {
 			tag.putInt("x", dimPos.pos().getX());
 			tag.putInt("y", dimPos.pos().getY());
 			tag.putInt("z", dimPos.pos().getZ());
-			tag.putLong("uuidMost", entry.ownerUuid.getMostSignificantBits());
-			tag.putLong("uuidLeast", entry.ownerUuid.getLeastSignificantBits());
+			if (entry.ownerUuid != null) {
+				tag.putLong("uuidMost", entry.ownerUuid.getMostSignificantBits());
+				tag.putLong("uuidLeast", entry.ownerUuid.getLeastSignificantBits());
+			}
 			tag.putString("ownerName", entry.ownerName);
 			tag.putLong("deathTime", entry.deathTimeMs);
+			tag.putBoolean("mobHead", entry.mobHead);
 			tag.putBoolean("unlocked", entry.unlocked);
 
 			ListTag itemList = new ListTag();
@@ -339,7 +415,19 @@ public class DeadHeadManager {
 		}
 	}
 
-	private static BlockPos findSafePosition(ServerLevel level, BlockPos deathPos) {
+	/**
+	 * The death spot, or the first replaceable block above it.
+	 *
+	 * A tracked head is never a candidate: two deaths in the same place would
+	 * otherwise overwrite the first head and take its contents with it, which is
+	 * rare for players and routine at a mob grinder.
+	 *
+	 * requireFree decides what happens when nothing is available. Mob heads give
+	 * up and let the drops fall as vanilla would. A player death falls back to
+	 * replacing whatever is at the death spot, as it always has, because
+	 * scattering a full inventory is the thing this mod exists to prevent.
+	 */
+	private static BlockPos findHeadPosition(ServerLevel level, BlockPos deathPos, boolean requireFree) {
 		int minY = level.getMinY();
 		int maxY = level.getMaxY();
 
@@ -347,15 +435,15 @@ public class DeadHeadManager {
 		int y = Mth.clamp(deathPos.getY(), minY + 1, maxY - 1);
 		int z = deathPos.getZ();
 
-		BlockPos pos = new BlockPos(x, y, z);
-
-		if (level.getBlockState(pos).canBeReplaced()) return pos;
-
-		for (int dy = 1; dy <= 10; dy++) {
-			BlockPos up = new BlockPos(x, Math.min(y + dy, maxY - 1), z);
-			if (level.getBlockState(up).canBeReplaced()) return up;
+		for (int dy = 0; dy <= 10; dy++) {
+			BlockPos candidate = new BlockPos(x, Math.min(y + dy, maxY - 1), z);
+			if (entries.containsKey(keyFor(level, candidate))) continue;
+			if (level.getBlockState(candidate).canBeReplaced()) return candidate;
 		}
 
-		return pos;
+		if (requireFree) return null;
+
+		BlockPos fallback = new BlockPos(x, y, z);
+		return entries.containsKey(keyFor(level, fallback)) ? null : fallback;
 	}
 }

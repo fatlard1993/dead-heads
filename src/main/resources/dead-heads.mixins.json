@@ -3,6 +3,8 @@
 	"package": "justfatlard.dead_heads.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
+		"EntityDropCaptureMixin",
+		"LivingEntityDeathLootMixin",
 		"ServerPlayerDeathMixin"
 	],
 	"injectors": {
