@@ -31,14 +31,10 @@ Off by default. Turn it on per world with `/gamerule dead-heads:mob_heads true`,
 
 Player death heads are unaffected by any of this: they keep their own lock, retrieval, and persistence rules and never rot.
 
-## Requirements
-
-Targets the Minecraft, Fabric Loader, Fabric API, and Java versions declared in this mod's `gradle.properties`. Check there for the exact currently-supported version.
-
 ## Installation
 
-Install alongside its declared dependencies (see `fabric.mod.json`). This mod's behavior is entirely server-side.
+Install server-side alongside its declared dependencies (see `fabric.mod.json`). Vanilla clients need nothing. Version targets live in `gradle.properties` (Minecraft, loader, Fabric API) and `fabric.mod.json` (Java).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT, see [LICENSE](LICENSE).
