@@ -10,6 +10,7 @@
 		"issues": "https://github.com/fatlard1993/dead-heads/issues"
 	},
 	"license": "MIT",
+	"icon": "assets/dead-heads/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": ["justfatlard.dead_heads.Main"]
