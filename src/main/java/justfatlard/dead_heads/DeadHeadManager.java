@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
@@ -53,6 +54,19 @@ public class DeadHeadManager {
 	private static final long SAVE_INTERVAL_MS = 30_000;
 
 	record DimPos(String dimension, BlockPos pos) {}
+
+	/** A head a player has yet to be pointed at, held from death until respawn. */
+	private record PendingCompass(ResourceKey<Level> dimension, BlockPos pos) {}
+
+	private static final Map<UUID, PendingCompass> pendingCompass = new ConcurrentHashMap<>();
+
+	/** Hand over the compass for the head this player just left behind. */
+	public static void onRespawn(ServerPlayer player) {
+		PendingCompass pending = pendingCompass.remove(player.getUUID());
+		if (pending == null) return;
+
+		DeathCompass.give(player, pending.dimension(), pending.pos());
+	}
 
 	private static DimPos keyFor(Level world, BlockPos pos) {
 		return new DimPos(world.dimension().identifier().toString(), pos);
@@ -104,6 +118,10 @@ public class DeadHeadManager {
 			skull.applyComponentsFromItemStack(profileStack);
 			skull.setChanged();
 		}
+
+		// Handed over at respawn rather than now: the player is dead, and anything
+		// put in their inventory here goes down with them.
+		pendingCompass.put(player.getUUID(), new PendingCompass(level.dimension(), headPos));
 
 		entries.put(keyFor(level, headPos), new DeadHeadEntry(
 			player.getUUID(),
@@ -212,6 +230,11 @@ public class DeadHeadManager {
 		entries.remove(key);
 		dirty = true;
 
+		// The compass has done its job the moment the head is empty.
+		if (player instanceof ServerPlayer serverCollector) {
+			DeathCompass.reclaim(serverCollector, pos);
+		}
+
 		return InteractionResult.SUCCESS;
 	}
 
@@ -237,6 +260,11 @@ public class DeadHeadManager {
 
 		dropItems((ServerLevel) world, pos, entry.items);
 		dirty = true;
+
+		// Broken rather than used, but the head is just as gone.
+		if (player instanceof ServerPlayer serverBreaker) {
+			DeathCompass.reclaim(serverBreaker, pos);
+		}
 	}
 
 	public static void tick(MinecraftServer server) {

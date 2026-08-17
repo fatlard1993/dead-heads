@@ -1,4 +1,5 @@
 {
 	"gamerule.dead-heads.mob_heads": "Mobs die into heads",
-	"gamerule.dead-heads.mob_heads.description": "A mob killed by a player leaves its drops inside a head block at the death spot. The head rots after a while and its contents are lost to the ground."
+	"gamerule.dead-heads.mob_heads.description": "A mob killed by a player leaves its drops inside a head block at the death spot. The head rots after a while and its contents are lost to the ground.",
+	"item.dead-heads.death_compass": "Death Compass"
 }

@@ -1,6 +1,7 @@
 package justfatlard.dead_heads;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
@@ -23,6 +24,9 @@ public class Main implements ModInitializer {
 		UseBlockCallback.EVENT.register(DeadHeadManager::onUseBlock);
 		PlayerBlockBreakEvents.BEFORE.register(DeadHeadManager::onBlockBreakBefore);
 		PlayerBlockBreakEvents.AFTER.register(DeadHeadManager::onBlockBreakAfter);
+		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+			if (!alive) DeadHeadManager.onRespawn(newPlayer);
+		});
 
 		LOGGER.info("Dead Heads loaded");
 	}
