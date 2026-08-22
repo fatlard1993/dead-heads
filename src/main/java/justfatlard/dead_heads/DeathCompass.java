@@ -10,6 +10,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
@@ -51,12 +52,35 @@ public final class DeathCompass {
 		return compass;
 	}
 
-	/** Put one in the player's hands, or at their feet if there is no room. */
-	public static void give(ServerPlayer player, ResourceKey<Level> dimension, BlockPos headPos) {
-		ItemStack compass = forHead(dimension, headPos);
+	/** Whether the inventory screen has a compass slot to put this in. */
+	private static final boolean COMPASS_SLOT =
+		net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("map-plus-plus");
+
+	/** Put one where compasses go, or in the pack, or at their feet if there is no room. */
+	public static void give(ServerPlayer player, ItemStack compass) {
+		// The compass slot first where there is one: it is where the player will look for a
+		// compass, and it keeps this out of the square they were about to put cobble in.
+		if (COMPASS_SLOT
+			&& justfatlard.dead_heads.integration.CompassSlot.offer(player, compass)) {
+			return;
+		}
+
 		if (!player.getInventory().add(compass)) {
 			player.drop(compass, false, net.minecraft.util.Prediction.SERVER_ONLY);
 		}
+	}
+
+	/**
+	 * Every compass of ours the player is keeping somewhere the death sweep does not reach,
+	 * taken out so it can be handed back after the respawn.
+	 */
+	public static List<ItemStack> takeStashed(ServerPlayer player) {
+		if (!COMPASS_SLOT) return List.of();
+
+		ItemStack stashed = justfatlard.dead_heads.integration.CompassSlot.take(
+			player, DeathCompass::isDeathCompass);
+
+		return stashed.isEmpty() ? List.of() : List.of(stashed);
 	}
 
 	/**
@@ -67,12 +91,20 @@ public final class DeathCompass {
 	 */
 	public static void reclaim(ServerPlayer player, BlockPos headPos) {
 		long target = headPos.asLong();
-		List<ItemStack> contents = player.getInventory().getNonEquipmentItems();
 
-		for (int slot = 0; slot < contents.size(); slot++) {
-			ItemStack stack = contents.get(slot);
-			if (pointsAt(stack, target)) {
-				contents.set(slot, ItemStack.EMPTY);
+		// Wherever it is kept has to include the slot it may have been put in, or a compass handed
+		// to that slot would be the one that never leaves.
+		if (COMPASS_SLOT) {
+			justfatlard.dead_heads.integration.CompassSlot.reclaim(player, stack -> pointsAt(stack, target));
+		}
+
+		// The whole container rather than the pack alone: the offhand is a place people keep a
+		// compass, and it is a slot the death sweep already reaches.
+		Inventory inventory = player.getInventory();
+
+		for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+			if (pointsAt(inventory.getItem(slot), target)) {
+				inventory.setItem(slot, ItemStack.EMPTY);
 			}
 		}
 	}

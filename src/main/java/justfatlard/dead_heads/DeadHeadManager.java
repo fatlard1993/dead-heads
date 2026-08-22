@@ -55,17 +55,23 @@ public class DeadHeadManager {
 
 	record DimPos(String dimension, BlockPos pos) {}
 
-	/** A head a player has yet to be pointed at, held from death until respawn. */
-	private record PendingCompass(ResourceKey<Level> dimension, BlockPos pos) {}
+	/** Compasses waiting on a player, held from death until respawn. */
+	private static final Map<UUID, List<ItemStack>> pendingCompasses = new ConcurrentHashMap<>();
 
-	private static final Map<UUID, PendingCompass> pendingCompass = new ConcurrentHashMap<>();
+	/**
+	 * Keep a compass through the death that would otherwise take it. Anything put in a dead
+	 * player's inventory goes down with them, so it waits here until they are standing again.
+	 */
+	private static void hold(ServerPlayer player, ItemStack compass) {
+		pendingCompasses.computeIfAbsent(player.getUUID(), uuid -> new ArrayList<>()).add(compass);
+	}
 
-	/** Hand over the compass for the head this player just left behind. */
+	/** Hand over the compasses this player died holding, plus the one for the head they left. */
 	public static void onRespawn(ServerPlayer player) {
-		PendingCompass pending = pendingCompass.remove(player.getUUID());
+		List<ItemStack> pending = pendingCompasses.remove(player.getUUID());
 		if (pending == null) return;
 
-		DeathCompass.give(player, pending.dimension(), pending.pos());
+		for (ItemStack compass : pending) DeathCompass.give(player, compass);
 	}
 
 	private static DimPos keyFor(Level world, BlockPos pos) {
@@ -95,7 +101,14 @@ public class DeadHeadManager {
 		}
 	}
 
-	public static void handleDeath(ServerPlayer player, List<ItemStack> items) {
+	/**
+	 * @param items     everything the player died with, bound for the head
+	 * @param compasses our own compasses, taken off the body rather than stored in it: a pointer
+	 *                  buried with the thing it points at is no pointer at all
+	 */
+	public static void handleDeath(ServerPlayer player, List<ItemStack> items, List<ItemStack> compasses) {
+		for (ItemStack compass : compasses) hold(player, compass);
+
 		if (items.isEmpty()) return;
 
 		ServerLevel level = player.level();
@@ -119,9 +132,7 @@ public class DeadHeadManager {
 			skull.setChanged();
 		}
 
-		// Handed over at respawn rather than now: the player is dead, and anything
-		// put in their inventory here goes down with them.
-		pendingCompass.put(player.getUUID(), new PendingCompass(level.dimension(), headPos));
+		hold(player, DeathCompass.forHead(level.dimension(), headPos));
 
 		entries.put(keyFor(level, headPos), new DeadHeadEntry(
 			player.getUUID(),

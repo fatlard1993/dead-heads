@@ -3,6 +3,7 @@ package justfatlard.dead_heads.mixin;
 import java.util.ArrayList;
 import java.util.List;
 import justfatlard.dead_heads.DeadHeadManager;
+import justfatlard.dead_heads.DeathCompass;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Inventory;
@@ -25,17 +26,22 @@ public abstract class ServerPlayerDeathMixin {
 
 		Inventory inv = player.getInventory();
 		List<ItemStack> items = new ArrayList<>();
+		List<ItemStack> compasses = new ArrayList<>();
 
+		// Both lists leave the inventory: what stays behind is what vanilla scatters on the
+		// ground a moment later, and the compass is not going in the head it points at.
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack stack = inv.getItem(i);
 			if (!stack.isEmpty()) {
-				items.add(stack.copy());
+				(DeathCompass.isDeathCompass(stack) ? compasses : items).add(stack.copy());
 				inv.setItem(i, ItemStack.EMPTY);
 			}
 		}
 
-		if (!items.isEmpty()) {
-			DeadHeadManager.handleDeath(player, items);
+		compasses.addAll(DeathCompass.takeStashed(player));
+
+		if (!items.isEmpty() || !compasses.isEmpty()) {
+			DeadHeadManager.handleDeath(player, items, compasses);
 		}
 	}
 }

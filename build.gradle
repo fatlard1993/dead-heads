@@ -19,6 +19,36 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	// Optional: the death compass goes in Map Plus Plus's compass slot when that mod is present.
+	// Compile-only and never bundled, and guarded at runtime, so this mod keeps working for a
+	// vanilla client with neither installed. Pandorical comes along because the slot is registered
+	// through it: wherever Map Plus Plus is, Pandorical is too.
+	//
+	// Resolved by the version each declares rather than a version written down here, because
+	// Gradle never clears build/libs and a name pinned by hand keeps compiling green against a jar
+	// an old build left behind.
+	def optional = { String name, String jarPrefix ->
+		def props = file("../${name}/gradle.properties")
+		if (!props.exists()) return null
+		def version = new Properties().with {
+			props.withInputStream { load(it) }
+			getProperty("mod_version")?.trim()
+		}
+		def jar = file("../${name}/build/libs/${jarPrefix}-${version}.jar")
+		return jar.exists() ? jar : null
+	}
+
+	def mapJar = optional("map-plus-plus", "map-plus-plus")
+	def pandoricalJar = optional("pandorical", "pandorical")
+	if (mapJar != null && pandoricalJar != null) {
+		compileOnly files(mapJar, pandoricalJar)
+	} else {
+		// Said plainly: the integration below imports these outright, so a missing jar surfaces as
+		// "package justfatlard.map_plus_plus does not exist" rather than as anything useful.
+		throw new GradleException("dead-heads compiles against map-plus-plus and pandorical." +
+			" Run `mc-build map-plus-plus` and `mc-build pandorical` first.")
+	}
 }
 
 processResources {
