@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
@@ -60,12 +61,27 @@ public final class DeathCompass {
 	private static final boolean COMPASS_SLOT =
 		net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("map-plus-plus");
 
-	/** Put one where compasses go, or in the pack, or at their feet if there is no room. */
+	/**
+	 * Put one where a compass belongs: the compass slot, or failing that the offhand.
+	 *
+	 * <p>Somewhere a player will look, rather than a square in the pack. With Map Plus Plus
+	 * installed that is the slot it adds; without it, the offhand is the only other place a
+	 * compass has a home of its own, and it leaves the hotbar free for what a freshly dead
+	 * player is about to pick back up.
+	 *
+	 * <p>The pack and then the ground remain behind those, because a compass that is somewhere
+	 * awkward still beats one that is nowhere: found on the floor was one of the ways this went
+	 * wrong, but it was the inventory being full that put it there, not this order of
+	 * preference.
+	 */
 	public static void give(ServerPlayer player, ItemStack compass) {
-		// The compass slot first where there is one: it is where the player will look for a
-		// compass, and it keeps this out of the square they were about to put cobble in.
 		if (COMPASS_SLOT
 			&& justfatlard.dead_heads.integration.CompassSlot.offer(player, compass)) {
+			return;
+		}
+
+		if (player.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
+			player.setItemSlot(EquipmentSlot.OFFHAND, compass);
 			return;
 		}
 
