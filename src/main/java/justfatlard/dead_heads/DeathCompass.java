@@ -43,7 +43,11 @@ public final class DeathCompass {
 		compass.set(DataComponents.LODESTONE_TRACKER,
 			new LodestoneTracker(Optional.of(GlobalPos.of(dimension, headPos)), false));
 		compass.set(DataComponents.CUSTOM_NAME,
-			Component.translatable("item.dead-heads.death_compass"));
+			// Literal, not a key. This mod is server-side and installs nothing on the
+			// client, so the client has no lang file to resolve a key against: a translatable
+			// name arrived in the player's hand reading "item.dead-heads.death_compass", which
+			// is why one of these could be picked up and still feel like it never came.
+			Component.literal("Death Compass"));
 
 		CompoundTag marker = new CompoundTag();
 		marker.putLong(MARKER_KEY, headPos.asLong());
