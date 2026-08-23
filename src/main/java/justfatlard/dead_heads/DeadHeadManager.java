@@ -32,6 +32,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ResolvableProfile;
@@ -196,6 +197,31 @@ public class DeadHeadManager {
 		dirty = true;
 	}
 
+	/**
+	 * Armour goes back on, not in.
+	 *
+	 * <p>Everything left the body as one flat list, so which piece was worn is not recorded - but
+	 * a helmet is a helmet, and an empty head slot on somebody who just walked back to their own
+	 * corpse is where it came from. Walking home and then re-dressing out of the pack is a chore
+	 * the death already charged for.
+	 *
+	 * <p>Only into an empty slot: anything they are wearing now they put on after dying, and
+	 * swapping it for the older piece is not a favour. Slot type rather than an armour tag, so a
+	 * carved pumpkin or a skull goes back to the head it was on.
+	 */
+	private static void handBack(ServerPlayer player, ItemStack stack) {
+		EquipmentSlot slot = player.getEquipmentSlotForItem(stack);
+
+		if (slot.getType() == EquipmentSlot.Type.HUMANOID_ARMOR && player.getItemBySlot(slot).isEmpty()) {
+			player.setItemSlot(slot, stack);
+			return;
+		}
+
+		if (!player.getInventory().add(stack)) {
+			player.drop(stack, false, Prediction.SERVER_ONLY);
+		}
+	}
+
 	private static void dropItems(ServerLevel level, BlockPos pos, List<ItemStack> items) {
 		for (ItemStack stack : items) {
 			if (!stack.isEmpty()) Block.popResource(level, pos, stack.copy());
@@ -227,11 +253,7 @@ public class DeadHeadManager {
 		ServerPlayer serverPlayer = (ServerPlayer) player;
 
 		for (ItemStack stack : entry.items) {
-			if (!stack.isEmpty()) {
-				if (!serverPlayer.getInventory().add(stack.copy())) {
-					serverPlayer.drop(stack.copy(), false, Prediction.SERVER_ONLY);
-				}
-			}
+			if (!stack.isEmpty()) handBack(serverPlayer, stack.copy());
 		}
 
 		// The consolation trophy is a player-head thing: a mob head has no owner
