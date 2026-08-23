@@ -129,6 +129,66 @@ public final class DeathCompass {
 		}
 	}
 
+	/**
+	 * How close counts as arrived.
+	 *
+	 * <p>Near enough that the place is in front of you rather than merely in the same chunk, and
+	 * far enough that the compass does not survive the walk in. Eight blocks is about the range
+	 * at which a head on the ground is visible, so the compass goes at the moment it stops
+	 * telling you anything you cannot already see.
+	 */
+	private static final int ARRIVED_WITHIN = 8;
+
+	/**
+	 * Drop any of our compasses whose destination the player has now reached.
+	 *
+	 * <p>Breaking the head already reclaims the compass that pointed at it, but that only ever
+	 * covered the deaths that left a head. A compass made for a headless death had nothing to
+	 * reclaim it and would have followed the player around for good. Arriving is the thing both
+	 * kinds have in common.
+	 */
+	public static void consumeOnArrival(ServerPlayer player) {
+		int spent = 0;
+
+		if (COMPASS_SLOT
+			&& !justfatlard.dead_heads.integration.CompassSlot.take(
+				player, stack -> arrived(player, stack)).isEmpty()) {
+			spent++;
+		}
+
+		Inventory inventory = player.getInventory();
+		for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+			if (arrived(player, inventory.getItem(slot))) {
+				inventory.setItem(slot, ItemStack.EMPTY);
+				spent++;
+			}
+		}
+
+		// Said out loud, because an item leaving your hand on its own is otherwise
+		// indistinguishable from never having been given one - and dying within sight of
+		// where you respawn spends the compass about a second after you get it.
+		if (spent > 0) {
+			player.sendSystemMessage(Component.literal(
+				spent == 1 ? "You are here. Your death compass is spent."
+					: "You are here. Your death compasses are spent."));
+		}
+	}
+
+	/** Whether this is one of ours and the player is standing at the place it points to. */
+	private static boolean arrived(ServerPlayer player, ItemStack stack) {
+		if (!isDeathCompass(stack)) return false;
+
+		LodestoneTracker tracker = stack.get(DataComponents.LODESTONE_TRACKER);
+		if (tracker == null || tracker.target().isEmpty()) return false;
+
+		GlobalPos target = tracker.target().get();
+		// A compass for somewhere in the nether is not spent by standing on the same
+		// coordinates in the overworld.
+		if (!target.dimension().equals(player.level().dimension())) return false;
+
+		return target.pos().closerThan(player.blockPosition(), ARRIVED_WITHIN);
+	}
+
 	private static boolean pointsAt(ItemStack stack, long headPos) {
 		if (stack.isEmpty() || !stack.is(Items.COMPASS)) return false;
 

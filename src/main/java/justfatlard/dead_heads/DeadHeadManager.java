@@ -291,6 +291,12 @@ public class DeadHeadManager {
 		if (++tickCounter < 20) return;
 		tickCounter = 0;
 
+		// Once a second is plenty for arriving somewhere: a player crosses eight blocks in
+		// rather more than that, so the compass goes on the step that gets them there.
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			DeathCompass.consumeOnArrival(player);
+		}
+
 		long now = System.currentTimeMillis();
 		long lockDuration = DeadHeadsConfig.getLockDurationMs();
 		long decayDuration = DeadHeadsConfig.getMobHeadDecayMs();
