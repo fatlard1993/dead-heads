@@ -109,15 +109,24 @@ public class DeadHeadManager {
 	public static void handleDeath(ServerPlayer player, List<ItemStack> items, List<ItemStack> compasses) {
 		for (ItemStack compass : compasses) hold(player, compass);
 
-		if (items.isEmpty()) return;
-
 		ServerLevel level = player.level();
 		BlockPos deathPos = player.blockPosition();
-		BlockPos headPos = findHeadPosition(level, deathPos, false);
 
-		if (headPos == null) {
+		// A head is the better thing for the compass to point at, but a death always has a
+		// place. The two deaths that produced no compass at all were the two where no head was
+		// placed: dying empty-handed, and dying somewhere a head will not fit. Neither is a
+		// moment to withhold the one item that says where you were.
+		BlockPos headPos = items.isEmpty() ? null : findHeadPosition(level, deathPos, false);
+
+		if (!items.isEmpty() && headPos == null) {
 			dropItems(level, deathPos, items);
 			player.sendSystemMessage(Component.literal("No room for your head here, your items dropped on the ground"));
+		}
+
+		// No head to point at, so point at the place instead, and stop here: everything below
+		// builds the head and the entry that tracks it.
+		if (headPos == null) {
+			hold(player, DeathCompass.forHead(level.dimension(), deathPos));
 			return;
 		}
 
