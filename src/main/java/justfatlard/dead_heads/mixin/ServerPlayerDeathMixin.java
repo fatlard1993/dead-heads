@@ -40,8 +40,10 @@ public abstract class ServerPlayerDeathMixin {
 
 		compasses.addAll(DeathCompass.takeStashed(player));
 
-		if (!items.isEmpty() || !compasses.isEmpty()) {
-			DeadHeadManager.handleDeath(player, items, compasses);
-		}
+		// Unconditional. handleDeath is also what hands back the compass, and it already knows
+		// that a death with nothing to store still has a place worth pointing at - but that
+		// branch was unreachable while this gate stood in front of it, so dying empty-handed
+		// was the one death that produced no compass at all.
+		DeadHeadManager.handleDeath(player, items, compasses);
 	}
 }
