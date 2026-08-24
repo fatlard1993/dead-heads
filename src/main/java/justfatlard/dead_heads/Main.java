@@ -18,6 +18,12 @@ public class Main implements ModInitializer {
 		DeadHeadsConfig.load();
 		DeadHeadsGameRules.register();
 
+		// Guarded class load: pandorical is compileOnly here, so naming its types has to happen
+		// somewhere a server without it never reaches.
+		if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("pandorical")) {
+			justfatlard.dead_heads.integration.HeadInteraction.register();
+		}
+
 		ServerLifecycleEvents.SERVER_STARTED.register(DeadHeadManager::onServerStarted);
 		ServerLifecycleEvents.SERVER_STOPPING.register(DeadHeadManager::onServerStopping);
 		ServerTickEvents.END_SERVER_TICK.register(DeadHeadManager::tick);

@@ -514,12 +514,21 @@ public class DeadHeadManager {
 		for (int dy = 0; dy <= 10; dy++) {
 			BlockPos candidate = new BlockPos(x, Math.min(y + dy, maxY - 1), z);
 			if (entries.containsKey(keyFor(level, candidate))) continue;
-			if (level.getBlockState(candidate).canBeReplaced()) return candidate;
+
+			BlockState at = level.getBlockState(candidate);
+			// Replaceable is not enough: water is replaceable, and a skull has no waterlogged
+			// state, so the fluid flows straight back in and destroys it - measured at under two
+			// seconds. The head went, the entry stayed, and the items inside it went with it.
+			// Climbing past the fluid puts the head at the surface, which is further from the
+			// body than ideal and infinitely closer than gone.
+			if (at.canBeReplaced() && at.getFluidState().isEmpty()) return candidate;
 		}
 
 		if (requireFree) return null;
 
+		// The fallback drowns for the same reason, so it is only a fallback on dry land.
 		BlockPos fallback = new BlockPos(x, y, z);
+		if (!level.getBlockState(fallback).getFluidState().isEmpty()) return null;
 		return entries.containsKey(keyFor(level, fallback)) ? null : fallback;
 	}
 }
