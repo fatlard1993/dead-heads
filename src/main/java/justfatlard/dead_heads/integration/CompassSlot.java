@@ -2,6 +2,7 @@ package justfatlard.dead_heads.integration;
 
 import justfatlard.map_plus_plus.Main;
 import justfatlard.map_plus_plus.inventory.MapPlusPlusInventory;
+import justfatlard.dead_heads.DeathCompass;
 import justfatlard.pandorical.api.PandoricalApi;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -24,10 +25,19 @@ public final class CompassSlot {
 	public static boolean offer(ServerPlayer player, ItemStack compass) {
 		var slots = PandoricalApi.playerInventory();
 
-		// Only into an empty slot. Whatever is in there is the compass they chose to keep there,
-		// and quietly swapping it for one that points at a corpse is not a favour.
 		ItemStack existing = slots.getSlot(player, Main.SLOTS_NAMESPACE, MapPlusPlusInventory.COMPASS_SLOT);
-		if (!existing.isEmpty()) return false;
+
+		// The slot is the whole point of putting it here: that is where the needle reads from, so
+		// a death compass anywhere else leaves the overlay pointing at spawn while the thing that
+		// knows where the body is sits in the offhand. An ordinary compass already in the slot
+		// used to win, and the result looked exactly like the mod having done nothing.
+		//
+		// The old one is not thrown away, only moved down into the pack - and if there is no room
+		// there it keeps the slot, because losing a compass is worse than not being handed one.
+		if (!existing.isEmpty()) {
+			if (DeathCompass.isDeathCompass(existing)) return false;
+			if (!player.getInventory().add(existing.copy())) return false;
+		}
 
 		slots.setSlot(player, Main.SLOTS_NAMESPACE, MapPlusPlusInventory.COMPASS_SLOT, compass);
 		return true;
