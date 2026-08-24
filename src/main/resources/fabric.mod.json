@@ -29,6 +29,8 @@
     "java": ">=25"
   },
   "suggests": {
-    "map-plus-plus": "*"
+    "map-plus-plus": "*",
+    "chest-utils": "*",
+    "pandorical": "*"
   }
 }
