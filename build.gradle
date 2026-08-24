@@ -41,13 +41,14 @@ dependencies {
 
 	def mapJar = optional("map-plus-plus", "map-plus-plus")
 	def pandoricalJar = optional("pandorical", "pandorical")
-	if (mapJar != null && pandoricalJar != null) {
-		compileOnly files(mapJar, pandoricalJar)
+	def chestUtilsJar = optional("chest-utils", "chest-utils")
+	if (mapJar != null && pandoricalJar != null && chestUtilsJar != null) {
+		compileOnly files(mapJar, pandoricalJar, chestUtilsJar)
 	} else {
 		// Said plainly: the integration below imports these outright, so a missing jar surfaces as
 		// "package justfatlard.map_plus_plus does not exist" rather than as anything useful.
-		throw new GradleException("dead-heads compiles against map-plus-plus and pandorical." +
-			" Run `mc-build map-plus-plus` and `mc-build pandorical` first.")
+		throw new GradleException("dead-heads compiles against map-plus-plus, pandorical and" +
+			" chest-utils. Run `mc-build` for each of them first.")
 	}
 }
 

@@ -83,12 +83,12 @@ public class DeadHeadManager {
 		/** Null for mob heads: they belong to nobody, exactly like the item entities they replace. */
 		final UUID ownerUuid;
 		final String ownerName;
-		final List<ItemStack> items;
+		final List<Kept> items;
 		final long deathTimeMs;
 		final boolean mobHead;
 		boolean unlocked;
 
-		DeadHeadEntry(UUID ownerUuid, String ownerName, List<ItemStack> items, long deathTimeMs, boolean mobHead, boolean unlocked) {
+		DeadHeadEntry(UUID ownerUuid, String ownerName, List<Kept> items, long deathTimeMs, boolean mobHead, boolean unlocked) {
 			this.ownerUuid = ownerUuid;
 			this.ownerName = ownerName;
 			this.items = items;
@@ -107,7 +107,7 @@ public class DeadHeadManager {
 	 * @param compasses our own compasses, taken off the body rather than stored in it: a pointer
 	 *                  buried with the thing it points at is no pointer at all
 	 */
-	public static void handleDeath(ServerPlayer player, List<ItemStack> items, List<ItemStack> compasses) {
+	public static void handleDeath(ServerPlayer player, List<Kept> items, List<ItemStack> compasses) {
 		for (ItemStack compass : compasses) hold(player, compass);
 
 		ServerLevel level = player.level();
@@ -168,8 +168,11 @@ public class DeadHeadManager {
 	 * If there is nowhere to put the head the drops just fall as usual: better
 	 * plain vanilla than swallowed loot.
 	 */
-	public static void handleMobDeath(LivingEntity mob, List<ItemStack> items) {
-		if (items.isEmpty()) return;
+	public static void handleMobDeath(LivingEntity mob, List<ItemStack> drops) {
+		if (drops.isEmpty()) return;
+		// A mob was not wearing its loot in any particular slot.
+		List<Kept> items = new ArrayList<>(drops.size());
+		for (ItemStack stack : drops) items.add(Kept.loose(stack));
 		if (!(mob.level() instanceof ServerLevel level)) return;
 
 		BlockPos deathPos = mob.blockPosition();
@@ -222,10 +225,61 @@ public class DeadHeadManager {
 		}
 	}
 
-	private static void dropItems(ServerLevel level, BlockPos pos, List<ItemStack> items) {
-		for (ItemStack stack : items) {
-			if (!stack.isEmpty()) Block.popResource(level, pos, stack.copy());
+	/**
+	 * Give a player their own kit back the way they were wearing it.
+	 *
+	 * <p>Only ever into a slot that is empty. Somebody who died naked, ran back in borrowed
+	 * armour and picked up their head should not have the borrowed set silently swapped out from
+	 * under them - so anything whose place is taken simply goes into the pack, which is what
+	 * every death before this one did with everything.
+	 *
+	 * <p>Armour is put on by writing the slot rather than by equipping it, because at this point
+	 * it is not a thing being put on: it is the thing that was already on, coming back.
+	 */
+	private static void restore(ServerPlayer player, List<Kept> items) {
+		var inventory = player.getInventory();
+		List<Kept> homeless = new ArrayList<>();
+
+		for (Kept kept : items) {
+			if (kept.stack().isEmpty()) continue;
+			ItemStack stack = kept.stack().copy();
+
+			if (kept.isVanillaSlot() && kept.slot() < inventory.getContainerSize()
+					&& inventory.getItem(kept.slot()).isEmpty()) {
+				inventory.setItem(kept.slot(), stack);
+				continue;
+			}
+
+			if (kept.isExtraSlot() && ExtraSlots.putBack(player, kept.namespace(), kept.slot(), stack)) {
+				continue;
+			}
+
+			homeless.add(new Kept(stack, "", Kept.NOWHERE));
 		}
+
+		// After the placed ones, so that a stack with a home does not lose it to something that
+		// had none arriving first.
+		for (Kept kept : homeless) handBack(player, kept.stack());
+
+		inventory.setChanged();
+
+		// And now that everything is back, tidy what could not go home. Only for the owner, and
+		// only ever their own head: sorting somebody's pack because they looted a stranger's
+		// skull would be a rummage they did not ask for.
+		PackSorting.sort(player);
+	}
+
+	private static void dropItems(ServerLevel level, BlockPos pos, List<Kept> items) {
+		for (Kept kept : items) {
+			if (!kept.stack().isEmpty()) Block.popResource(level, pos, kept.stack().copy());
+		}
+	}
+
+	/** The items alone, for the things that only care what is in a head and not where it was. */
+	private static List<ItemStack> stacksOf(List<Kept> items) {
+		List<ItemStack> stacks = new ArrayList<>(items.size());
+		for (Kept kept : items) stacks.add(kept.stack());
+		return stacks;
 	}
 
 	public static InteractionResult onUseBlock(Player player, Level world, InteractionHand hand, BlockHitResult hitResult) {
@@ -252,8 +306,12 @@ public class DeadHeadManager {
 
 		ServerPlayer serverPlayer = (ServerPlayer) player;
 
-		for (ItemStack stack : entry.items) {
-			if (!stack.isEmpty()) handBack(serverPlayer, stack.copy());
+		if (isOwner) {
+			restore(serverPlayer, entry.items);
+		} else {
+			for (Kept kept : entry.items) {
+				if (!kept.stack().isEmpty()) handBack(serverPlayer, kept.stack().copy());
+			}
 		}
 
 		// The consolation trophy is a player-head thing: a mob head has no owner
@@ -351,7 +409,7 @@ public class DeadHeadManager {
 			// instead. Take the kill before it turns, or feed the garden.
 			if (entry.mobHead) {
 				if (decayDuration > 0 && (now - entry.deathTimeMs) >= decayDuration) {
-					int charges = MobHeads.fertilityCharges(entry.items);
+					int charges = MobHeads.fertilityCharges(stacksOf(entry.items));
 					level.removeBlock(dimPos.pos(), false);
 					MobHeads.fertilize(level, dimPos.pos(), charges);
 					iter.remove();
@@ -425,13 +483,18 @@ public class DeadHeadManager {
 				long deathTime = tag.getLongOr("deathTime", 0L);
 				boolean unlocked = tag.getBooleanOr("unlocked", false);
 
-				List<ItemStack> items = new ArrayList<>();
+				List<Kept> items = new ArrayList<>();
 				ListTag itemList = tag.getListOrEmpty("items");
 				for (int j = 0; j < itemList.size(); j++) {
-					if (itemList.get(j) instanceof CompoundTag itemNbt) {
-						itemNbt.read(ItemStack.MAP_CODEC, registries.createSerializationContext(NbtOps.INSTANCE))
-							.ifPresent(items::add);
-					}
+					if (!(itemList.get(j) instanceof CompoundTag itemNbt)) continue;
+
+					// Written before this mod recorded where things were: everything in an older
+					// head comes back the way it always did, in the first free square.
+					String namespace = itemNbt.getStringOr("ns", "");
+					int slot = itemNbt.getIntOr("slot", Kept.NOWHERE);
+
+					itemNbt.read(ItemStack.MAP_CODEC, registries.createSerializationContext(NbtOps.INSTANCE))
+						.ifPresent(stack -> items.add(new Kept(stack, namespace, slot)));
 				}
 
 				entries.put(new DimPos(dimension, pos), new DeadHeadEntry(ownerUuid, ownerName, items, deathTime, mobHead, unlocked));
@@ -469,12 +532,14 @@ public class DeadHeadManager {
 			tag.putBoolean("unlocked", entry.unlocked);
 
 			ListTag itemList = new ListTag();
-			for (ItemStack stack : entry.items) {
-				if (!stack.isEmpty()) {
-					CompoundTag itemNbt = new CompoundTag();
-					itemNbt.store(ItemStack.MAP_CODEC, registries.createSerializationContext(NbtOps.INSTANCE), stack);
-					itemList.add(itemNbt);
-				}
+			for (Kept kept : entry.items) {
+				if (kept.stack().isEmpty()) continue;
+
+				CompoundTag itemNbt = new CompoundTag();
+				itemNbt.store(ItemStack.MAP_CODEC, registries.createSerializationContext(NbtOps.INSTANCE), kept.stack());
+				if (kept.slot() != Kept.NOWHERE) itemNbt.putInt("slot", kept.slot());
+				if (!kept.namespace().isEmpty()) itemNbt.putString("ns", kept.namespace());
+				itemList.add(itemNbt);
 			}
 			tag.put("items", itemList);
 
