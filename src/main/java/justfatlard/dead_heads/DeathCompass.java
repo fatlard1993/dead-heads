@@ -38,7 +38,31 @@ public final class DeathCompass {
 	/** Marks our compasses so they can be found again without guessing from the target. */
 	private static final String MARKER_KEY = "dead_heads_compass";
 
+	/**
+	 * Whether there is a head at the other end of this one.
+	 *
+	 * <p>Absent on compasses made before the distinction existed, and read as true there: nearly
+	 * all of them were tethered, and the ones that were not are spent the moment they are looked
+	 * at, which is where they were heading anyway.
+	 */
+	private static final String TETHER_KEY = "dead_heads_tethered";
+
+	/** Pointed at a head, and spent when that head stops existing. */
 	public static ItemStack forHead(ResourceKey<Level> dimension, BlockPos headPos) {
+		return make(dimension, headPos, true);
+	}
+
+	/**
+	 * Pointed at a place, for a death that left no head to point at.
+	 *
+	 * <p>Nothing will ever be harvested here, so nothing can ever spend it that way. This is the
+	 * one kind that still goes when you arrive.
+	 */
+	public static ItemStack forPlace(ResourceKey<Level> dimension, BlockPos deathPos) {
+		return make(dimension, deathPos, false);
+	}
+
+	private static ItemStack make(ResourceKey<Level> dimension, BlockPos headPos, boolean tethered) {
 		ItemStack compass = new ItemStack(Items.COMPASS);
 
 		compass.set(DataComponents.LODESTONE_TRACKER,
@@ -52,6 +76,7 @@ public final class DeathCompass {
 
 		CompoundTag marker = new CompoundTag();
 		marker.putLong(MARKER_KEY, headPos.asLong());
+		marker.putBoolean(TETHER_KEY, tethered);
 		compass.set(DataComponents.CUSTOM_DATA, CustomData.of(marker));
 
 		return compass;
@@ -104,99 +129,90 @@ public final class DeathCompass {
 	}
 
 	/**
-	 * Take back the compass pointing at this head, wherever the player is keeping
-	 * it. Called when the head gives up its contents, so the compass leaves at the
-	 * moment it stops having a job: an inventory full of dead compasses pointing at
-	 * places you have already been is worse than no compass at all.
-	 */
-	public static void reclaim(ServerPlayer player, BlockPos headPos) {
-		long target = headPos.asLong();
-
-		// Wherever it is kept has to include the slot it may have been put in, or a compass handed
-		// to that slot would be the one that never leaves.
-		if (COMPASS_SLOT) {
-			justfatlard.dead_heads.integration.CompassSlot.reclaim(player, stack -> pointsAt(stack, target));
-		}
-
-		// The whole container rather than the pack alone: the offhand is a place people keep a
-		// compass, and it is a slot the death sweep already reaches.
-		Inventory inventory = player.getInventory();
-
-		for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-			if (pointsAt(inventory.getItem(slot), target)) {
-				inventory.setItem(slot, ItemStack.EMPTY);
-			}
-		}
-	}
-
-	/**
-	 * How close counts as arrived.
+	 * How close counts as arrived, for the one kind of compass that ends that way.
 	 *
-	 * <p>Near enough that the place is in front of you rather than merely in the same chunk, and
-	 * far enough that the compass does not survive the walk in. Eight blocks is about the range
-	 * at which a head on the ground is visible, so the compass goes at the moment it stops
-	 * telling you anything you cannot already see.
+	 * <p>Near enough that the place is in front of you rather than merely in the same chunk. There
+	 * is nothing to find here - this is where somebody died with no room for a head - so standing
+	 * on the spot is the whole of what the compass had to offer.
 	 */
 	private static final int ARRIVED_WITHIN = 8;
 
 	/**
-	 * Drop any of our compasses whose destination the player has now reached.
+	 * Take back any compass that has stopped having a job.
 	 *
-	 * <p>Breaking the head already reclaims the compass that pointed at it, but that only ever
-	 * covered the deaths that left a head. A compass made for a headless death had nothing to
-	 * reclaim it and would have followed the player around for good. Arriving is the thing both
-	 * kinds have in common.
+	 * <p>One rule does nearly all of it: a compass tethered to a head is spent when that head is
+	 * gone, however it went - harvested by its owner, looted by somebody else, broken, blown up,
+	 * or rotted where it stood. That is the moment it stops pointing at anything worth walking
+	 * to, and it is the same moment for every player carrying one, not only for whoever was
+	 * standing there.
+	 *
+	 * <p>Walking to the place is no longer enough. Arriving and not picking the head up is a
+	 * thing people do - hands full, wrong tools, coming back with a shulker - and the compass
+	 * that got them there should still be there for the second trip.
+	 *
+	 * <p>The exception is a death that left no head. That compass points at bare ground which
+	 * will never be harvested, so arriving is the only end it can have.
 	 */
-	public static void consumeOnArrival(ServerPlayer player) {
-		int spent = 0;
+	public static void settle(ServerPlayer player) {
+		int done = 0;
+		int arrived = 0;
 
-		if (COMPASS_SLOT
-			&& !justfatlard.dead_heads.integration.CompassSlot.take(
-				player, stack -> arrived(player, stack)).isEmpty()) {
-			spent++;
+		if (COMPASS_SLOT) {
+			ItemStack taken = justfatlard.dead_heads.integration.CompassSlot.take(
+				player, stack -> spent(player, stack));
+			if (!taken.isEmpty()) {
+				if (tethered(taken)) done++; else arrived++;
+			}
 		}
 
 		Inventory inventory = player.getInventory();
 		for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-			if (arrived(player, inventory.getItem(slot))) {
-				inventory.setItem(slot, ItemStack.EMPTY);
-				spent++;
-			}
+			ItemStack stack = inventory.getItem(slot);
+			if (!spent(player, stack)) continue;
+
+			if (tethered(stack)) done++; else arrived++;
+			inventory.setItem(slot, ItemStack.EMPTY);
 		}
 
 		// Said out loud, because an item leaving your hand on its own is otherwise
-		// indistinguishable from never having been given one - and dying within sight of
-		// where you respawn spends the compass about a second after you get it.
-		if (spent > 0) {
-			player.sendSystemMessage(Component.literal(
-				spent == 1 ? "You are here. Your death compass is spent."
-					: "You are here. Your death compasses are spent."));
+		// indistinguishable from never having been given one.
+		if (done > 0) {
+			player.sendSystemMessage(Component.literal(done == 1
+				? "The head this compass was tethered to is gone. The compass is spent."
+				: "The heads these compasses were tethered to are gone. The compasses are spent."));
+		}
+		if (arrived > 0) {
+			player.sendSystemMessage(Component.literal(arrived == 1
+				? "You are here. Your death compass is spent."
+				: "You are here. Your death compasses are spent."));
 		}
 	}
 
-	/** Whether this is one of ours and the player is standing at the place it points to. */
-	private static boolean arrived(ServerPlayer player, ItemStack stack) {
+	/** Whether this compass of ours has nothing left to point at. */
+	private static boolean spent(ServerPlayer player, ItemStack stack) {
 		if (!isDeathCompass(stack)) return false;
 
 		LodestoneTracker tracker = stack.get(DataComponents.LODESTONE_TRACKER);
 		if (tracker == null || tracker.target().isEmpty()) return false;
-
 		GlobalPos target = tracker.target().get();
+
+		if (tethered(stack)) return !DeadHeadManager.hasHead(target);
+
+		return arrived(player, target);
+	}
+
+	private static boolean tethered(ItemStack stack) {
+		CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+		return data == null || data.copyTag().getBooleanOr(TETHER_KEY, true);
+	}
+
+	/** Whether the player is standing at the place this points to. */
+	private static boolean arrived(ServerPlayer player, GlobalPos target) {
 		// A compass for somewhere in the nether is not spent by standing on the same
 		// coordinates in the overworld.
 		if (!target.dimension().equals(player.level().dimension())) return false;
 
 		return target.pos().closerThan(player.blockPosition(), ARRIVED_WITHIN);
-	}
-
-	private static boolean pointsAt(ItemStack stack, long headPos) {
-		if (stack.isEmpty() || !stack.is(Items.COMPASS)) return false;
-
-		CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-		if (data == null) return false;
-
-		CompoundTag tag = data.copyTag();
-		return tag.getLongOr(MARKER_KEY, Long.MIN_VALUE) == headPos;
 	}
 
 	/** True when this stack is one of ours, whichever head it points at. */

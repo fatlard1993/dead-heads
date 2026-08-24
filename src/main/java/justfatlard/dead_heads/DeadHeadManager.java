@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
@@ -79,6 +80,19 @@ public class DeadHeadManager {
 		return new DimPos(world.dimension().identifier().toString(), pos);
 	}
 
+	/**
+	 * Whether a head is still standing here.
+	 *
+	 * <p>Answered from the record rather than from the world, deliberately: a head in an unloaded
+	 * chunk is still a head, and asking the world would either force the chunk or report the head
+	 * missing because nobody is nearby. A compass should not expire because its owner walked
+	 * away.
+	 */
+	public static boolean hasHead(GlobalPos target) {
+		return entries.containsKey(
+			new DimPos(target.dimension().identifier().toString(), target.pos()));
+	}
+
 	static class DeadHeadEntry {
 		/** Null for mob heads: they belong to nobody, exactly like the item entities they replace. */
 		final UUID ownerUuid;
@@ -127,7 +141,7 @@ public class DeadHeadManager {
 		// No head to point at, so point at the place instead, and stop here: everything below
 		// builds the head and the entry that tracks it.
 		if (headPos == null) {
-			hold(player, DeathCompass.forHead(level.dimension(), deathPos));
+			hold(player, DeathCompass.forPlace(level.dimension(), deathPos));
 			return;
 		}
 
@@ -330,10 +344,10 @@ public class DeadHeadManager {
 		entries.remove(key);
 		dirty = true;
 
-		// The compass has done its job the moment the head is empty.
-		if (player instanceof ServerPlayer serverCollector) {
-			DeathCompass.reclaim(serverCollector, pos);
-		}
+		// The head is gone, so the compass that pointed at it is spent. Only this player's, and
+		// only now: everybody else's goes on the next sweep, which is the same rule reaching
+		// them a second later.
+		DeathCompass.settle(serverPlayer);
 
 		return InteractionResult.SUCCESS;
 	}
@@ -361,9 +375,9 @@ public class DeadHeadManager {
 		dropItems((ServerLevel) world, pos, entry.items);
 		dirty = true;
 
-		// Broken rather than used, but the head is just as gone.
+		// Broken rather than harvested, but the head is just as gone.
 		if (player instanceof ServerPlayer serverBreaker) {
-			DeathCompass.reclaim(serverBreaker, pos);
+			DeathCompass.settle(serverBreaker);
 		}
 	}
 
@@ -371,10 +385,11 @@ public class DeadHeadManager {
 		if (++tickCounter < 20) return;
 		tickCounter = 0;
 
-		// Once a second is plenty for arriving somewhere: a player crosses eight blocks in
-		// rather more than that, so the compass goes on the step that gets them there.
+		// Once a second. A head can stop existing without the player who holds its compass being
+		// anywhere near it - somebody else harvested it, or it rotted - so the compass cannot
+		// wait for them to do something before it notices.
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			DeathCompass.consumeOnArrival(player);
+			DeathCompass.settle(player);
 		}
 
 		long now = System.currentTimeMillis();
