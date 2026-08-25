@@ -1,13 +1,14 @@
 {
-	"required": true,
-	"package": "justfatlard.dead_heads.mixin",
-	"compatibilityLevel": "JAVA_25",
-	"mixins": [
-		"EntityDropCaptureMixin",
-		"LivingEntityDeathLootMixin",
-		"ServerPlayerDeathMixin"
-	],
-	"injectors": {
-		"defaultRequire": 1
-	}
+  "required": true,
+  "package": "justfatlard.dead_heads.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "EntityDropCaptureMixin",
+    "ExplosionProtectionMixin",
+    "LivingEntityDeathLootMixin",
+    "ServerPlayerDeathMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

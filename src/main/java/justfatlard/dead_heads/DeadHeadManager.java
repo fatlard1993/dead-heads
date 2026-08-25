@@ -81,6 +81,23 @@ public class DeadHeadManager {
 	}
 
 	/**
+	 * Whether the head here is one nothing is allowed to break yet.
+	 *
+	 * <p>A locked head is the owner's alone for the lock's duration, and that promise is worth
+	 * nothing if a creeper can undo it. Explosions are the case that matters: a blast calculates
+	 * which blocks it will clear, <em>then</em> kills whoever is standing there, and only then
+	 * clears them - so a head placed by that death lands in a list drawn up before it existed and
+	 * is removed by the same explosion, a few milliseconds after being placed. The contents go on
+	 * the floor and despawn while their owner is still on the respawn screen.
+	 *
+	 * <p>Mob heads are not covered: they have no owner, no lock, and rot by design.
+	 */
+	public static boolean isProtected(Level world, BlockPos pos) {
+		DeadHeadEntry entry = entries.get(keyFor(world, pos));
+		return entry != null && !entry.mobHead && !entry.unlocked;
+	}
+
+	/**
 	 * Whether a head is still standing here.
 	 *
 	 * <p>Answered from the record rather than from the world, deliberately: a head in an unloaded
