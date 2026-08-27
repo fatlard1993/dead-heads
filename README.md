@@ -16,7 +16,7 @@ Optionally, mobs do the same: one killed by a player leaves its drops in a head 
 
 Right-click the head. It empties and disappears.
 
-**Back where they were**, not into the first free square. The helmet goes on your head, the shield to your offhand, the pickaxe under the key it was under. A death used to hand back a heap — everything present, none of it anywhere — and the first two minutes back at your body went on putting your own kit on again.
+**Back where they were**, not into the first free square. The helmet goes on your head, the shield to your offhand, the pickaxe under the key it was under. Handed back as a heap — everything present, none of it anywhere — recovery would start with two minutes of putting your own kit on again.
 
 Only ever into a slot that is **empty**. If you died naked, ran back in borrowed armour and picked up your head, the borrowed set is not swapped out from under you; anything whose place is taken goes into the pack instead, the way it always did.
 
@@ -68,7 +68,7 @@ Player death heads never rot, and none of this touches them.
 
 - **It respects `keepInventory`.** Creative, spectator, or the game rule on, and this mod does nothing at all.
 - **Two deaths cannot share a spot.** A tracked head is never a candidate position for the next one, which is rare for players and routine at a mob grinder.
-- **Extra inventory slots come too.** Slots other mods add to the inventory screen are emptied into the head with everything else, and put back on recovery. They used to be neither dropped nor kept: the store behind them is not carried across a respawn, so an equipped map simply stopped existing.
+- **Extra inventory slots come too.** Slots other mods add to the inventory screen are emptied into the head with everything else, and put back on recovery. Left alone they would be neither dropped nor kept: the store behind them is not carried across a respawn, and an equipped map would simply stop existing.
 - **Heads in unloaded chunks are still heads.** The record, not the world, is what a compass asks — so a compass does not expire because its owner walked away.
 - **It survives restarts.** Head data is saved periodically and on shutdown, and reloaded on start.
 - **Older heads still open.** Ones written before this mod recorded slots hand their contents back the way they always did, in the first free square.
