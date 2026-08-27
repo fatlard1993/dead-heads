@@ -1,9 +1,7 @@
 package justfatlard.dead_heads;
 
-import java.util.ArrayList;
 import java.util.List;
-import justfatlard.pandorical.api.PandoricalApi;
-import net.minecraft.resources.Identifier;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
@@ -16,28 +14,18 @@ import net.minecraft.world.item.ItemStack;
  * carried across a respawn, so an equipped map simply stopped existing. This is where they get
  * taken and where they get put back.
  *
- * <p>Pandorical is a hard dependency of this mod, so nothing here needs a guard.
+ * <p>Added slots only exist through Pandorical, and Pandorical is optional - so without it there
+ * is nothing to empty and nowhere to put back, and the class that names its types stays unloaded.
  */
 public final class ExtraSlots {
 	private ExtraSlots() {}
 
+	private static final boolean PRESENT = FabricLoader.getInstance().isModLoaded("pandorical");
+
 	/** Everything sitting in an added slot, taken out of it, ready for the head. */
 	public static List<Kept> empty(ServerPlayer player) {
-		var slots = PandoricalApi.playerInventory();
-		List<Kept> taken = new ArrayList<>();
-
-		for (var registration : PandoricalApi.playerInventory().registeredSlots()) {
-			Identifier namespace = registration.namespace();
-
-			for (var entry : registration.slots()) {
-				ItemStack stack = slots.getSlot(player, namespace, entry.slotIndex());
-				if (stack.isEmpty()) continue;
-
-				taken.add(new Kept(stack.copy(), namespace.toString(), entry.slotIndex()));
-				slots.setSlot(player, namespace, entry.slotIndex(), ItemStack.EMPTY);
-			}
-		}
-		return taken;
+		if (!PRESENT) return List.of();
+		return justfatlard.dead_heads.integration.PandoricalSlots.empty(player);
 	}
 
 	/**
@@ -47,22 +35,7 @@ public final class ExtraSlots {
 	 *         then finds it a place in the pack instead
 	 */
 	public static boolean putBack(ServerPlayer player, String namespace, int slotIndex, ItemStack stack) {
-		Identifier id = Identifier.tryParse(namespace);
-		if (id == null) return false;
-
-		var slots = PandoricalApi.playerInventory();
-
-		// The mod that owned this slot may not be installed any more, in which case writing to it
-		// would put the item somewhere with nothing to show it.
-		boolean declared = PandoricalApi.playerInventory().registeredSlots().stream()
-			.filter(registration -> registration.namespace().equals(id))
-			.flatMap(registration -> registration.slots().stream())
-			.anyMatch(entry -> entry.slotIndex() == slotIndex && entry.validator().test(stack));
-		if (!declared) return false;
-
-		if (!slots.getSlot(player, id, slotIndex).isEmpty()) return false;
-
-		slots.setSlot(player, id, slotIndex, stack);
-		return true;
+		if (!PRESENT) return false;
+		return justfatlard.dead_heads.integration.PandoricalSlots.putBack(player, namespace, slotIndex, stack);
 	}
 }
