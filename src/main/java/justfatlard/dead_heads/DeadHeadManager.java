@@ -6,10 +6,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
@@ -59,6 +61,50 @@ public class DeadHeadManager {
 
 	/** Compasses waiting on a player, held from death until respawn. */
 	private static final Map<UUID, List<ItemStack>> pendingCompasses = new ConcurrentHashMap<>();
+
+	/** Players whose next head is nobody's in particular: a potion took them there. */
+	private static final Set<UUID> unlockNextDeath = ConcurrentHashMap.newKeySet();
+
+	public static void unlockNextDeath(UUID player) {
+		unlockNextDeath.add(player);
+	}
+
+	/**
+	 * A death this mod is staying out of: creative, spectator, or the game rule keeping
+	 * everything. Nothing is placed, but the death still happened, so the potion's tour starts
+	 * over and a promise to unlock the head there was never going to be is dropped rather than
+	 * kept for whichever head comes next.
+	 */
+	public static void deathWithoutHead(ServerPlayer player) {
+		DeadReckoning.forget(player.getUUID());
+		unlockNextDeath.remove(player.getUUID());
+	}
+
+	private static GlobalPos globalPos(DimPos key) {
+		return GlobalPos.of(ResourceKey.create(Registries.DIMENSION, Identifier.parse(key.dimension())), key.pos());
+	}
+
+	/** This player's own heads, newest death first. */
+	public static List<GlobalPos> headsOf(UUID player) {
+		List<Map.Entry<DimPos, DeadHeadEntry>> own = new ArrayList<>();
+		for (Map.Entry<DimPos, DeadHeadEntry> entry : entries.entrySet()) {
+			if (player.equals(entry.getValue().ownerUuid)) own.add(entry);
+		}
+		own.sort(Comparator.comparingLong((Map.Entry<DimPos, DeadHeadEntry> entry) -> entry.getValue().deathTimeMs).reversed());
+		List<GlobalPos> heads = new ArrayList<>(own.size());
+		for (Map.Entry<DimPos, DeadHeadEntry> entry : own) heads.add(globalPos(entry.getKey()));
+		return heads;
+	}
+
+	/** Every head this player could open that is not theirs: unlocked player heads and mob heads alike. */
+	public static List<GlobalPos> openHeads(UUID player) {
+		List<GlobalPos> heads = new ArrayList<>();
+		for (Map.Entry<DimPos, DeadHeadEntry> entry : entries.entrySet()) {
+			DeadHeadEntry head = entry.getValue();
+			if (head.unlocked && !player.equals(head.ownerUuid)) heads.add(globalPos(entry.getKey()));
+		}
+		return heads;
+	}
 
 	/**
 	 * Keep a compass through the death that would otherwise take it. Anything put in a dead
@@ -140,6 +186,8 @@ public class DeadHeadManager {
 	 */
 	public static void handleDeath(ServerPlayer player, List<Kept> items, List<ItemStack> compasses) {
 		for (ItemStack compass : compasses) hold(player, compass);
+		DeadReckoning.forget(player.getUUID());
+		boolean unlocked = unlockNextDeath.remove(player.getUUID());
 
 		ServerLevel level = player.level();
 		BlockPos deathPos = player.blockPosition();
@@ -163,10 +211,12 @@ public class DeadHeadManager {
 		}
 
 		int rotation = Mth.floor((player.getYRot() * 16.0F / 360.0F) + 0.5F) & 15;
-		BlockState headState = Blocks.PLAYER_HEAD.defaultBlockState().setValue(SkullBlock.ROTATION, rotation);
+		// A head that starts unlocked starts as what an unlocked head turns into.
+		Block headBlock = unlocked ? Blocks.SKELETON_SKULL : Blocks.PLAYER_HEAD;
+		BlockState headState = headBlock.defaultBlockState().setValue(SkullBlock.ROTATION, rotation);
 		level.setBlock(headPos, headState, Block.UPDATE_ALL);
 
-		if (level.getBlockEntity(headPos) instanceof SkullBlockEntity skull) {
+		if (!unlocked && level.getBlockEntity(headPos) instanceof SkullBlockEntity skull) {
 			ItemStack profileStack = new ItemStack(Items.PLAYER_HEAD);
 			profileStack.set(DataComponents.PROFILE, ResolvableProfile.createResolved(player.getGameProfile()));
 			skull.applyComponentsFromItemStack(profileStack);
@@ -181,12 +231,13 @@ public class DeadHeadManager {
 			items,
 			System.currentTimeMillis(),
 			false,
-			false
+			unlocked
 		));
 		dirty = true;
 
 		player.sendSystemMessage(Component.literal(
 			"Your items are stored in your head at " + headPos.getX() + ", " + headPos.getY() + ", " + headPos.getZ()
+				+ (unlocked ? ", and it is already anyone's" : "")
 		));
 	}
 

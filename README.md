@@ -50,6 +50,51 @@ After that it unlocks for anyone, and visibly: it turns into a skeleton skull, a
 
 Breaking a locked head is refused. Breaking an unlocked one pops its contents out as ordinary drops rather than losing them, and so does anything else that removes the block.
 
+## Soulbound
+
+One enchantment, one level, on anything that takes an enchantment: what carries it does not go
+in the head. It is still in your hands when you stand back up, in the slot it was in - or in the
+pack, for something out of a slot another mod added, since that slot does not outlive the respawn.
+
+Treasure, on the same terms as Mending: found in chests, bought from librarians, never made at a
+table. The head-and-compass deal is the right one for nearly everything you own; this is for the
+few things you would rather not have to walk back for.
+
+It is kept through the body rather than through this mod's own files. A dead player still has an
+inventory and the game saves it like any other, so a server that restarts while you are on the
+death screen has lost nothing.
+
+## Dead Reckoning
+
+A potion that takes you back to where you died. Brew a chorus fruit onto a potion of healing -
+plain or strong - and that is what comes out, with the healing landing as you do. The compass
+tells you the way; this is for when the way is the problem.
+
+Each bottle is one jump, and the jumps run in the order you would want them:
+
+1. **Your newest head.** Then, bottle by bottle, each older head of yours.
+2. **Somebody else's head**, once you have stood at all of your own. A player's that has come
+   unlocked or a mob's, chosen at random, which is what the skulls scattered around a server are
+   for.
+3. **Nowhere.** Past all of those the potion has one place left to take you, and it kills you.
+   The head that death leaves is unlocked from the start. You are told before the swallow.
+
+Your own death starts the tour over from the newest head, which is the one that death just made.
+
+You land on top of the head, or beside it when there is no room above, with solid ground
+preferred over open air.
+
+It is brewed by an ordinary datapack recipe into an ordinary potion carrying a colour, an effect,
+a name and a mark, rather than a new entry in the potion registry. To a player the two are the
+same bottle; the difference is that a registry entry would have to be on every client, and this
+mod's promise is that a vanilla client needs nothing.
+
+Brewing one takes a chorus fruit, which takes the End, which is a long way from the first death
+that needs one. So the chests of the places people die in carry a bottle now and then: dungeons,
+mineshafts, strongholds, temples, outposts, shipwrecks, ruined portals, fortresses, bastions,
+end cities, ancient cities and trial chambers, one chest in five, one bottle. A find, not a
+supply.
+
 ## Mob Heads
 
 Off by default. `/gamerule dead-heads:mob_heads true` per world, or `mob_heads_default` in the config for new ones.
@@ -75,6 +120,7 @@ Player death heads never rot, and none of this touches them.
 
 ## Configuration
 
+All three are on the Dead Heads page of the mod menu, for ops. The file is where they are kept,
 `config/dead-heads.properties`:
 
 | Key | Default | |
@@ -91,26 +137,9 @@ Dead Heads runs server-side and works on a vanilla client. [Pandorical](https://
 
 Map++ and Chest Utils integrations are likewise optional and guarded — absent, their features simply are not there.
 
-## Source Map
+## Development
 
-| File | What is in it |
-|---|---|
-| `DeadHeadManager.java` | Every tracked head: placing, opening, breaking, decay, persistence |
-| `DeathCompass.java` | Making a compass, giving it, and taking it back when it is spent |
-| `Kept.java` | One item and the slot it came out of |
-| `ExtraSlots.java` | Emptying and refilling the slots other mods add |
-| `MobHeads.java` | Which head a mob gets, and what its loot fertilises |
-| `PackSorting.java` | The guard in front of the Chest Utils sort |
-| `integration/CompassSlot.java` | Map++'s compass slot |
-| `integration/ChestUtilsSort.java` | Chest Utils' sort |
-| `integration/HeadInteraction.java` | Telling a Pandorical client the right-click is ours |
-| `mixin/ServerPlayerDeathMixin.java` | Taking the inventory, slot indices and all, before vanilla scatters it |
-| `mixin/LivingEntityDeathLootMixin.java` | The window around a mob's death loot |
-| `mixin/EntityDropCaptureMixin.java` | Swallowing drops inside that window |
-
-## Installation
-
-Install server-side alongside its declared dependencies (see `fabric.mod.json`). Vanilla clients need nothing. Version targets live in `gradle.properties` (Minecraft, loader, Fabric API) and `fabric.mod.json` (Java).
+Installing and the map of the source are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## License
 

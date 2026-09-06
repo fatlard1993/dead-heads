@@ -6,6 +6,8 @@ import justfatlard.dead_heads.DeadHeadManager;
 import justfatlard.dead_heads.DeathCompass;
 import justfatlard.dead_heads.ExtraSlots;
 import justfatlard.dead_heads.Kept;
+import justfatlard.dead_heads.Soulbound;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Inventory;
@@ -23,12 +25,17 @@ public abstract class ServerPlayerDeathMixin {
 	private void captureDeathItems(DamageSource source, CallbackInfo ci) {
 		ServerPlayer player = (ServerPlayer)(Object) this;
 
-		if (player.isCreative() || player.isSpectator()) return;
-		if (player.level().getGameRules().get(GameRules.KEEP_INVENTORY)) return;
+		if (player.isCreative() || player.isSpectator()
+				|| player.level().getGameRules().get(GameRules.KEEP_INVENTORY)) {
+			DeadHeadManager.deathWithoutHead(player);
+			return;
+		}
 
+		ServerLevel level = player.level();
 		Inventory inv = player.getInventory();
 		List<Kept> items = new ArrayList<>();
 		List<ItemStack> compasses = new ArrayList<>();
+		List<Kept> soulbound = new ArrayList<>();
 
 		// Both lists leave the inventory: what stays behind is what vanilla scatters on the
 		// ground a moment later, and the compass is not going in the head it points at.
@@ -42,6 +49,8 @@ public abstract class ServerPlayerDeathMixin {
 
 			if (DeathCompass.isDeathCompass(stack)) {
 				compasses.add(stack.copy());
+			} else if (Soulbound.has(level, stack)) {
+				soulbound.add(new Kept(stack.copy(), "", i));
 			} else {
 				items.add(new Kept(stack.copy(), "", i));
 			}
@@ -55,12 +64,23 @@ public abstract class ServerPlayerDeathMixin {
 		// Slots other mods put on the inventory screen. They hold inventory, so they go in the
 		// head - and emptying them is also what stops the store behind them being carried across
 		// the respawn with a copy of what is now in the head.
-		items.addAll(ExtraSlots.empty(player));
+		for (Kept kept : ExtraSlots.empty(player)) {
+			(Soulbound.has(level, kept.stack()) ? soulbound : items).add(kept);
+		}
+
+		// Out of vanilla's reach for the length of the death, and back on the body at the end of
+		// it: see the tail below.
+		Soulbound.hold(player, soulbound);
 
 		// Unconditional. handleDeath is also what hands back the compass, and it already knows
 		// that a death with nothing to store still has a place worth pointing at - but that
 		// branch was unreachable while this gate stood in front of it, so dying empty-handed
 		// was the one death that produced no compass at all.
 		DeadHeadManager.handleDeath(player, items, compasses);
+	}
+
+	@Inject(method = "die", at = @At("TAIL"))
+	private void keepSoulbound(DamageSource source, CallbackInfo ci) {
+		Soulbound.settleOnBody((ServerPlayer)(Object) this);
 	}
 }

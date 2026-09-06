@@ -102,4 +102,52 @@ public class DeadHeadsConfig {
 			LOGGER.error("[{}] Failed to create default config: {}", Main.MOD_ID, e.getMessage());
 		}
 	}
+
+	/**
+	 * Write one value back into the config file, keeping the file's comments and order: the
+	 * line for the key is replaced where it stands, or added at the end when it is missing.
+	 */
+	private static void store(String key, String value) {
+		try {
+			java.nio.file.Path path = CONFIG_PATH;
+			java.util.List<String> lines = java.nio.file.Files.exists(path)
+				? new java.util.ArrayList<>(java.nio.file.Files.readAllLines(path))
+				: new java.util.ArrayList<>();
+			boolean found = false;
+			for (int i = 0; i < lines.size(); i++) {
+				if (lines.get(i).trim().startsWith(key + "=") || lines.get(i).trim().startsWith(key + " =")) {
+					lines.set(i, key + "=" + value);
+					found = true;
+				}
+			}
+			if (!found) lines.add(key + "=" + value);
+			java.nio.file.Files.createDirectories(path.getParent());
+			java.nio.file.Files.write(path, lines);
+		} catch (java.io.IOException e) {
+			LOGGER.warn("Could not write dead-heads config", e);
+		}
+	}
+
+	public static int lockDurationMinutes() { return lockDurationMinutes; }
+	public static int mobHeadDecaySeconds() { return mobHeadDecaySeconds; }
+
+	public static void setLockDurationMinutes(int minutes) { lockDurationMinutes = minutes; store("lock_duration_minutes", String.valueOf(minutes)); }
+	public static void setMobHeadsDefault(boolean on) { mobHeadsDefault = on; store("mob_heads_default", String.valueOf(on)); }
+	public static void setMobHeadDecaySeconds(int seconds) { mobHeadDecaySeconds = seconds; store("mob_head_decay_seconds", String.valueOf(seconds)); }
+
+	/** The file's knobs in the mod menu, for ops. */
+	public static void menu() {
+		justfatlard.pandorical.api.PandoricalApi.settings().serverGroup(Main.MOD_ID, "Dead Heads")
+			.number("lockDuration", "Head lock, minutes", 0, 60, 1, 5)
+			.describe("How long a dropped head is the dead player's alone")
+			.backedBy(player -> lockDurationMinutes(), (player, v) -> setLockDurationMinutes(v));
+		justfatlard.pandorical.api.PandoricalApi.settings().serverGroup(Main.MOD_ID, "Dead Heads")
+			.toggle("mobHeads", "Mob heads by default", false)
+			.describe("Mobs drop heads without being asked")
+			.backedBy(player -> mobHeadsDefault(), (player, v) -> setMobHeadsDefault(v));
+		justfatlard.pandorical.api.PandoricalApi.settings().serverGroup(Main.MOD_ID, "Dead Heads")
+			.number("mobHeadDecay", "Mob head decay, seconds", 0, 3600, 60, 600)
+			.backedBy(player -> mobHeadDecaySeconds(), (player, v) -> setMobHeadDecaySeconds(v));
+	}
+
 }

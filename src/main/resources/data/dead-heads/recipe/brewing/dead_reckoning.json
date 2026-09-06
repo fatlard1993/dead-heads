@@ -1,0 +1,40 @@
+{
+  "type": "minecraft:brewing",
+  "input": {
+    "item": "minecraft:potion",
+    "potion_contents": {
+      "potions": [
+        "minecraft:healing",
+        "minecraft:strong_healing"
+      ]
+    }
+  },
+  "reagent": {
+    "item": "minecraft:chorus_fruit"
+  },
+  "output": {
+    "id": "minecraft:potion",
+    "components": {
+      "minecraft:potion_contents": {
+        "custom_color": 8077216,
+        "custom_effects": [
+          {
+            "id": "minecraft:instant_health"
+          }
+        ]
+      },
+      "minecraft:custom_name": {
+        "text": "Potion of Dead Reckoning",
+        "italic": false
+      },
+      "minecraft:lore": [
+        {
+          "text": "Drink to return to where you died",
+          "color": "gray",
+          "italic": false
+        }
+      ],
+      "minecraft:custom_data": "{dead_heads_reckoning:1b}"
+    }
+  }
+}

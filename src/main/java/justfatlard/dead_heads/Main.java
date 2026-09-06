@@ -16,7 +16,9 @@ public class Main implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		DeadHeadsConfig.load();
+		if (justfatlard.pandorical.api.PandoricalApi.isAvailable()) DeadHeadsConfig.menu();
 		DeadHeadsGameRules.register();
+		ReckoningLoot.register();
 
 		// Guarded class load: pandorical is compileOnly here, so naming its types has to happen
 		// somewhere a server without it never reaches.
@@ -31,7 +33,9 @@ public class Main implements ModInitializer {
 		PlayerBlockBreakEvents.BEFORE.register(DeadHeadManager::onBlockBreakBefore);
 		PlayerBlockBreakEvents.AFTER.register(DeadHeadManager::onBlockBreakAfter);
 		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-			if (!alive) DeadHeadManager.onRespawn(newPlayer);
+			if (alive) return;
+			Soulbound.restore(oldPlayer, newPlayer);
+			DeadHeadManager.onRespawn(newPlayer);
 		});
 
 		LOGGER.info("Dead Heads loaded");
