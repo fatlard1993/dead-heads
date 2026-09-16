@@ -100,19 +100,55 @@ public final class DeathCompass {
 	 * preference.
 	 */
 	public static void give(ServerPlayer player, ItemStack compass) {
+		String where = describe(compass);
+		award(player);
 		if (COMPASS_SLOT
 			&& justfatlard.dead_heads.integration.CompassSlot.offer(player, compass)) {
+			trace(player, "given into the compass slot: " + where);
 			return;
 		}
 
 		if (player.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
 			player.setItemSlot(EquipmentSlot.OFFHAND, compass);
+			trace(player, "given into the offhand: " + where);
 			return;
 		}
 
 		if (!player.getInventory().add(compass)) {
 			player.drop(compass, false, net.minecraft.util.Prediction.SERVER_ONLY);
+			trace(player, "dropped, no room anywhere: " + where);
+			return;
 		}
+		trace(player, "given into the pack: " + where);
+	}
+
+	private static final net.minecraft.resources.Identifier ADVANCEMENT =
+		net.minecraft.resources.Identifier.fromNamespaceAndPath("dead-heads", "death_compass");
+
+	/**
+	 * "Retracing Your Steps", granted here rather than by an inventory trigger: the compass often
+	 * goes straight into Map Plus Plus's slot, which no inventory trigger sees, and a trigger on
+	 * compasses in general was earned by any compass at all.
+	 */
+	private static void award(ServerPlayer player) {
+		var holder = player.level().getServer().getAdvancements().get(ADVANCEMENT);
+		if (holder != null) player.getAdvancements().award(holder, "compass");
+	}
+
+	/**
+	 * One line in the server log per step of a compass's life - made, handed over, spent - so a
+	 * report of a compass that never came can be read back to the step that did not happen. An
+	 * item leaving a player's hands is otherwise invisible from the console.
+	 */
+	static void trace(ServerPlayer player, String what) {
+		justfatlard.dead_heads.Main.LOGGER.info("[dead-heads] compass for {}: {}", player.getName().getString(), what);
+	}
+
+	static String describe(ItemStack compass) {
+		LodestoneTracker tracker = compass.get(DataComponents.LODESTONE_TRACKER);
+		String target = tracker == null || tracker.target().isEmpty() ? "nowhere"
+			: tracker.target().get().dimension().identifier() + " " + tracker.target().get().pos().toShortString();
+		return (tethered(compass) ? "tethered to the head at " : "pointing at the place ") + target;
 	}
 
 	/**
@@ -162,6 +198,7 @@ public final class DeathCompass {
 				player, stack -> spent(player, stack));
 			if (!taken.isEmpty()) {
 				if (tethered(taken)) done++; else arrived++;
+				trace(player, "spent out of the compass slot: " + describe(taken));
 			}
 		}
 
@@ -171,6 +208,7 @@ public final class DeathCompass {
 			if (!spent(player, stack)) continue;
 
 			if (tethered(stack)) done++; else arrived++;
+			trace(player, "spent out of inventory slot " + slot + ": " + describe(stack));
 			inventory.setItem(slot, ItemStack.EMPTY);
 		}
 

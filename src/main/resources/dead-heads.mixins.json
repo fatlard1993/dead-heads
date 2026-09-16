@@ -6,6 +6,7 @@
     "DrinkMixin",
     "EntityDropCaptureMixin",
     "ExplosionProtectionMixin",
+    "HeadKeepsFluidOutMixin",
     "LivingEntityDeathLootMixin",
     "ServerPlayerDeathMixin"
   ],

@@ -10,14 +10,7 @@
   },
   "criteria": {
     "compass": {
-      "trigger": "minecraft:inventory_changed",
-      "conditions": {
-        "items": [
-          {
-            "items": "minecraft:compass"
-          }
-        ]
-      }
+      "trigger": "minecraft:impossible"
     }
   },
   "parent": "minecraft:adventure/root"

@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import justfatlard.dead_heads.Kept;
 import justfatlard.pandorical.api.PandoricalApi;
+import justfatlard.pandorical.api.PlayerInventoryApi;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -34,6 +36,10 @@ public final class PandoricalSlots {
 			}
 		}
 		return taken;
+	}
+
+	public static void orderAfterRespawnCopy(Identifier phase) {
+		ServerPlayerEvents.AFTER_RESPAWN.addPhaseOrdering(PlayerInventoryApi.RESPAWN_PHASE, phase);
 	}
 
 	/**

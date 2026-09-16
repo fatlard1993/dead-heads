@@ -47,6 +47,15 @@ public abstract class ServerPlayerDeathMixin {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty()) continue;
 
+			// Curse of Vanishing: gone at death, as vanilla has it, rather than kept safe in the
+			// head. Vanilla deletes these just before it drops the rest, which is after this runs,
+			// so a head used to be the one place a cursed item survived its owner. The curse
+			// outranks Soulbound too: an item that says it vanishes, vanishes.
+			if (vanishes(stack)) {
+				inv.setItem(i, ItemStack.EMPTY);
+				continue;
+			}
+
 			if (DeathCompass.isDeathCompass(stack)) {
 				compasses.add(stack.copy());
 			} else if (Soulbound.has(level, stack)) {
@@ -65,6 +74,7 @@ public abstract class ServerPlayerDeathMixin {
 		// head - and emptying them is also what stops the store behind them being carried across
 		// the respawn with a copy of what is now in the head.
 		for (Kept kept : ExtraSlots.empty(player)) {
+			if (vanishes(kept.stack())) continue;
 			(Soulbound.has(level, kept.stack()) ? soulbound : items).add(kept);
 		}
 
@@ -77,6 +87,11 @@ public abstract class ServerPlayerDeathMixin {
 		// branch was unreachable while this gate stood in front of it, so dying empty-handed
 		// was the one death that produced no compass at all.
 		DeadHeadManager.handleDeath(player, items, compasses);
+	}
+
+	private static boolean vanishes(ItemStack stack) {
+		return net.minecraft.world.item.enchantment.EnchantmentHelper.has(stack,
+			net.minecraft.world.item.enchantment.EnchantmentEffectComponents.PREVENT_EQUIPMENT_DROP);
 	}
 
 	@Inject(method = "die", at = @At("TAIL"))

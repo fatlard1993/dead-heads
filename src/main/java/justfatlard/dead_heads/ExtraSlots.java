@@ -2,6 +2,7 @@ package justfatlard.dead_heads;
 
 import java.util.List;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
@@ -26,6 +27,12 @@ public final class ExtraSlots {
 	public static List<Kept> empty(ServerPlayer player) {
 		if (!PRESENT) return List.of();
 		return justfatlard.dead_heads.integration.PandoricalSlots.empty(player);
+	}
+
+	/** Orders {@code phase} of AFTER_RESPAWN after the one in which the slots are current again. */
+	public static void orderAfterRespawnCopy(Identifier phase) {
+		if (!PRESENT) return;
+		justfatlard.dead_heads.integration.PandoricalSlots.orderAfterRespawnCopy(phase);
 	}
 
 	/**

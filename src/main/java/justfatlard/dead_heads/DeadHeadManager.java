@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiFunction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
@@ -28,6 +30,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -67,6 +70,33 @@ public class DeadHeadManager {
 
 	public static void unlockNextDeath(UUID player) {
 		unlockNextDeath.add(player);
+	}
+
+	/** Places another mod gives heads a lock time of their own, in minutes. */
+	private static final List<BiFunction<ServerLevel, BlockPos, Integer>> LOCK_TIMES = new CopyOnWriteArrayList<>();
+
+	/**
+	 * For another mod, by reflection if it likes: heads placed where {@code where} answers are
+	 * locked that many minutes instead of the server's, and 0 leaves them anyone's from the start.
+	 * The first answer wins; null leaves it to the next, and at the end to the server's.
+	 */
+	public static void lockTimeAt(BiFunction<ServerLevel, BlockPos, Integer> where) {
+		LOCK_TIMES.add(where);
+	}
+
+	/** The lock time a place has of its own, or null where it has the server's. */
+	private static Long placeLockMs(ServerLevel level, BlockPos pos) {
+		for (BiFunction<ServerLevel, BlockPos, Integer> where : LOCK_TIMES) {
+			Integer minutes = where.apply(level, pos);
+			if (minutes != null) return Math.max(0, minutes) * 60_000L;
+		}
+		return null;
+	}
+
+	/** How long a head here stays its owner's. */
+	private static long lockDurationMs(Level level, BlockPos pos) {
+		Long own = level instanceof ServerLevel serverLevel ? placeLockMs(serverLevel, pos) : null;
+		return own != null ? own : DeadHeadsConfig.getLockDurationMs();
 	}
 
 	/**
@@ -117,7 +147,10 @@ public class DeadHeadManager {
 	/** Hand over the compasses this player died holding, plus the one for the head they left. */
 	public static void onRespawn(ServerPlayer player) {
 		List<ItemStack> pending = pendingCompasses.remove(player.getUUID());
-		if (pending == null) return;
+		if (pending == null) {
+			DeathCompass.trace(player, "respawned with none waiting");
+			return;
+		}
 
 		for (ItemStack compass : pending) DeathCompass.give(player, compass);
 	}
@@ -138,6 +171,16 @@ public class DeadHeadManager {
 	 *
 	 * <p>Mob heads are not covered: they have no owner, no lock, and rot by design.
 	 */
+	/**
+	 * Whether fluid is kept out of this block (HeadKeepsFluidOutMixin): a player's head, which
+	 * water would otherwise wash away within a second or two, spilling what it holds. Not a mob
+	 * head, which at a farm would dam the stream that carries the drops.
+	 */
+	public static boolean keepsFluidOut(Level world, BlockPos pos) {
+		DeadHeadEntry entry = entries.get(keyFor(world, pos));
+		return entry != null && !entry.mobHead;
+	}
+
 	public static boolean isProtected(Level world, BlockPos pos) {
 		DeadHeadEntry entry = entries.get(keyFor(world, pos));
 		return entry != null && !entry.mobHead && !entry.unlocked;
@@ -207,10 +250,13 @@ public class DeadHeadManager {
 		// builds the head and the entry that tracks it.
 		if (headPos == null) {
 			hold(player, DeathCompass.forPlace(level.dimension(), deathPos));
+			DeathCompass.trace(player, "died with no head placed, held one for " + deathPos.toShortString());
 			return;
 		}
 
 		int rotation = Mth.floor((player.getYRot() * 16.0F / 360.0F) + 0.5F) & 15;
+		Long placeLock = placeLockMs(level, headPos);
+		if (placeLock != null && placeLock == 0) unlocked = true;
 		// A head that starts unlocked starts as what an unlocked head turns into.
 		Block headBlock = unlocked ? Blocks.SKELETON_SKULL : Blocks.PLAYER_HEAD;
 		BlockState headState = headBlock.defaultBlockState().setValue(SkullBlock.ROTATION, rotation);
@@ -224,6 +270,7 @@ public class DeadHeadManager {
 		}
 
 		hold(player, DeathCompass.forHead(level.dimension(), headPos));
+		DeathCompass.trace(player, "died, head placed and compass held for " + headPos.toShortString());
 
 		entries.put(keyFor(level, headPos), new DeadHeadEntry(
 			player.getUUID(),
@@ -375,7 +422,7 @@ public class DeadHeadManager {
 		boolean isOwner = entry.isOwner(player);
 
 		if (!entry.unlocked && !isOwner) {
-			long remainingMs = DeadHeadsConfig.getLockDurationMs() - (System.currentTimeMillis() - entry.deathTimeMs);
+			long remainingMs = lockDurationMs(world, pos) - (System.currentTimeMillis() - entry.deathTimeMs);
 			long remainingSec = Math.max(1, remainingMs / 1000);
 			String timeStr = remainingSec >= 60
 				? (remainingSec / 60) + "m " + (remainingSec % 60) + "s"
@@ -461,7 +508,6 @@ public class DeadHeadManager {
 		}
 
 		long now = System.currentTimeMillis();
-		long lockDuration = DeadHeadsConfig.getLockDurationMs();
 		long decayDuration = DeadHeadsConfig.getMobHeadDecayMs();
 
 		Iterator<Map.Entry<DimPos, DeadHeadEntry>> iter = entries.entrySet().iterator();
@@ -501,6 +547,7 @@ public class DeadHeadManager {
 				continue;
 			}
 
+			long lockDuration = lockDurationMs(level, dimPos.pos());
 			if (!entry.unlocked && lockDuration > 0 && (now - entry.deathTimeMs) >= lockDuration) {
 				entry.unlocked = true;
 				int rotation = state.getValue(SkullBlock.ROTATION);
@@ -640,16 +687,20 @@ public class DeadHeadManager {
 	}
 
 	/**
-	 * The death spot, or the first replaceable block above it.
+	 * Where a death's head goes: always in the column the body fell in.
 	 *
-	 * A tracked head is never a candidate: two deaths in the same place would
-	 * otherwise overwrite the first head and take its contents with it, which is
-	 * rare for players and routine at a mob grinder.
+	 * <p>A player who died in water leaves it on the bottom beneath them, the fluid held out of it.
+	 * Anywhere else it is the death spot or the first replaceable block above that isn't fluid, so
+	 * a head climbs out of a lava pool onto its surface rather than sitting in it.
 	 *
-	 * requireFree decides what happens when nothing is available. Mob heads give
-	 * up and let the drops fall as vanilla would. A player death falls back to
-	 * replacing whatever is at the death spot, as it always has, because
-	 * scattering a full inventory is the thing this mod exists to prevent.
+	 * <p>A tracked head is never a candidate: two deaths in the same place would otherwise
+	 * overwrite the first head and take its contents with it, which is rare for players and
+	 * routine at a mob grinder.
+	 *
+	 * <p>requireFree decides what happens when nothing is available. Mob heads give up and let the
+	 * drops fall as vanilla would. A player death falls back to replacing whatever is at the death
+	 * spot, fluid included since fluid is held out of it, because scattering a full inventory is
+	 * the thing this mod exists to prevent.
 	 */
 	private static BlockPos findHeadPosition(ServerLevel level, BlockPos deathPos, boolean requireFree) {
 		int minY = level.getMinY();
@@ -659,24 +710,39 @@ public class DeadHeadManager {
 		int y = Mth.clamp(deathPos.getY(), minY + 1, maxY - 1);
 		int z = deathPos.getZ();
 
+		if (!requireFree) {
+			BlockPos bottom = bottomOfWater(level, new BlockPos(x, y, z));
+			if (bottom != null) return bottom;
+		}
+
 		for (int dy = 0; dy <= 10; dy++) {
 			BlockPos candidate = new BlockPos(x, Math.min(y + dy, maxY - 1), z);
 			if (entries.containsKey(keyFor(level, candidate))) continue;
 
 			BlockState at = level.getBlockState(candidate);
-			// Replaceable is not enough: water is replaceable, and a skull has no waterlogged
-			// state, so the fluid flows straight back in and destroys it - measured at under two
-			// seconds. The head went, the entry stayed, and the items inside it went with it.
-			// Climbing past the fluid puts the head at the surface, which is further from the
-			// body than ideal and infinitely closer than gone.
 			if (at.canBeReplaced() && at.getFluidState().isEmpty()) return candidate;
 		}
 
 		if (requireFree) return null;
 
-		// The fallback drowns for the same reason, so it is only a fallback on dry land.
 		BlockPos fallback = new BlockPos(x, y, z);
-		if (!level.getBlockState(fallback).getFluidState().isEmpty()) return null;
 		return entries.containsKey(keyFor(level, fallback)) ? null : fallback;
+	}
+
+	/**
+	 * The lowest open water straight down from here, or null where here is not open water. A head
+	 * already on the bottom is not water, so a second death in the same place stacks on the first.
+	 */
+	private static BlockPos bottomOfWater(ServerLevel level, BlockPos from) {
+		if (!openWater(level, from)) return null;
+		BlockPos bottom = from;
+		while (bottom.getY() > level.getMinY() && openWater(level, bottom.below())) bottom = bottom.below();
+		return bottom;
+	}
+
+	/** Water a head can take the place of: a source, a current or seagrass, not a waterlogged block. */
+	private static boolean openWater(ServerLevel level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		return state.getFluidState().is(FluidTags.WATER) && state.canBeReplaced();
 	}
 }
