@@ -28,6 +28,9 @@
     "minecraft": "${minecraftDependency}",
     "java": ">=25"
   },
+  "breaks": {
+    "pandorical": "<15.0.0"
+  },
   "suggests": {
     "map-plus-plus": "*",
     "chest-utils": "*",

@@ -596,7 +596,11 @@ public class DeadHeadManager {
 		HolderLookup.Provider registries = server.registryAccess();
 
 		try {
-			CompoundTag root = NbtIo.readCompressed(path, NbtAccounter.defaultQuota());
+			// Unlimited, because this is a file we wrote. The default quota is two megabytes and
+			// exists to bound NBT arriving over a network from somebody else; a death head keeps
+			// a whole inventory, so a server with a few hundred deaths on it writes a save it then
+			// refuses to read - and refuses at startup, which takes the server down with it.
+			CompoundTag root = NbtIo.readCompressed(path, NbtAccounter.unlimitedHeap());
 			ListTag list = root.getListOrEmpty("entries");
 
 			entries.clear();
@@ -634,6 +638,42 @@ public class DeadHeadManager {
 		} catch (IOException e) {
 			Main.LOGGER.error("[{}] Failed to load death head data: {}", Main.MOD_ID, e.getMessage());
 		}
+	}
+
+	/**
+	 * Forget every head standing in a box, for ground that is about to be built over.
+	 *
+	 * <p>The y of the box is ignored: a plot is flattened top to bottom, so anything in that
+	 * column goes with it.
+	 */
+	public static int forgetWithin(ResourceKey<Level> dimension, BlockPos one, BlockPos other) {
+		String key = dimension.identifier().toString();
+		int minX = Math.min(one.getX(), other.getX());
+		int maxX = Math.max(one.getX(), other.getX());
+		int minZ = Math.min(one.getZ(), other.getZ());
+		int maxZ = Math.max(one.getZ(), other.getZ());
+		return forget(entry -> entry.dimension().equals(key)
+			&& entry.pos().getX() >= minX && entry.pos().getX() <= maxX
+			&& entry.pos().getZ() >= minZ && entry.pos().getZ() <= maxZ);
+	}
+
+	/** Forget every head in a dimension. */
+	public static int forgetIn(ResourceKey<Level> dimension) {
+		String key = dimension.identifier().toString();
+		return forget(entry -> entry.dimension().equals(key));
+	}
+
+	private static int forget(java.util.function.Predicate<DimPos> which) {
+		int before = entries.size();
+		entries.keySet().removeIf(which);
+		int gone = before - entries.size();
+		if (gone > 0) {
+			// Marked so the next save writes the smaller file; a head nobody can reach is only
+			// weight, and enough of it stops the save being readable at all.
+			dirty = true;
+			Main.LOGGER.info("forgot {} head(s) on ground that is gone", gone);
+		}
+		return gone;
 	}
 
 	static void save(MinecraftServer server) {
