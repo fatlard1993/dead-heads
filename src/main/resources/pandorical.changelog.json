@@ -4,20 +4,27 @@
   ],
   "versions": {
     "1.2.1": [
-      "A world with hundreds of deaths in it starts again. The record of every head had grown past what the game would read back, and a server that had it stopped on the way up rather than loading.",
-      "Ground that is flattened and built over, an arena plot between rounds, can have the heads standing on it forgotten with it, so the record stops growing forever."
+      "A world with hundreds of deaths in it starts again.",
+      "The record had grown past what the game would read back, so a server with it stopped on the way up.",
+      "Ground that is flattened and built over, an arena plot between rounds, can forget its heads.",
+      "So the record stops growing forever."
     ],
     "1.2.0": [
-      "Water and lava flow around a head instead of washing it away, so drowning leaves your things on the bottom rather than strewn across the floor.",
+      "Water and lava flow around a head instead of washing it away.",
+      "Drowning leaves your things on the bottom rather than strewn across the floor.",
       "Ops get /deadheads tp and /deadheads where, for when the compass and the potion are not enough."
     ],
     "1.1.1": [
-      "Dead reckoning: brew a chorus fruit onto a potion of healing and it takes you back to where you died, newest head first, then your older ones, then somebody else's, and past all of those to nowhere, which kills you. You are told before the swallow.",
+      "Dead reckoning: brew a chorus fruit onto a potion of healing to go back to where you died.",
+      "Newest head first, then your older ones, then somebody else's.",
+      "Past all of those is nowhere, which kills you. You are told before the swallow.",
       "Bottles turn up now and then in the chests of the places people die in, one chest in five."
     ],
     "1.1.0": [
-      "Your things go into a head wearing your face, and come back where they were: the helmet on your head, the shield to your offhand, the pickaxe under the key it was under.",
-      "You respawn holding a compass pointed at it, spent only once the head is empty. Mobs killed by a player can leave heads too, off by default and set per world."
+      "Your things go into a head wearing your face, and come back where they were.",
+      "The helmet on your head, the shield to your offhand, the pickaxe under the key it was under.",
+      "You respawn holding a compass pointed at it, spent once the head is empty.",
+      "Mobs killed by a player can leave heads too, off by default and set per world."
     ]
   }
 }
