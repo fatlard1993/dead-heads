@@ -46,9 +46,7 @@ It is also lifted **out** of that slot when you die, because the slot's store is
 
 For a configurable while after you die, only you can empty it. Anybody else is told whose head it is and how long is left.
 
-Another mod can give a place a lock time of its own, and
-[PvP Dimensions](https://github.com/fatlard1993/pvp-dimensions) does, so each arena can have its own:
-none at all, where anything dropped is fair game at once, or longer than the server's.
+Another mod can give a place a lock time of its own, and [PvP Dimensions](https://github.com/fatlard1993/pvp-dimensions) does, so each arena can have its own: none at all, where anything dropped is fair game at once, or longer than the server's.
 
 After that it unlocks for anyone, and visibly: it turns into a skeleton skull, and you are told it has. Somebody who empties a head that is not theirs also gets a player head bearing the owner's face, which is the only consolation this mod offers and about the right amount.
 
@@ -56,54 +54,31 @@ Breaking a locked head is refused, and an explosion leaves it standing. Breaking
 
 ## Soulbound
 
-One enchantment, one level, on anything that takes an enchantment: what carries it does not go
-in the head. It is still in your hands when you stand back up, in the slot it was in - or in the
-pack, for something out of a slot another mod added, since that slot does not outlive the respawn.
+One enchantment, one level, on anything that takes an enchantment: what carries it does not go in the head. It is still in your hands when you stand back up, in the slot it was in - or in the pack, for something out of a slot another mod added, since that slot does not outlive the respawn.
 
-Curse of Vanishing outranks it. A cursed item is gone at death, as vanilla has it, rather than
-kept safe in the head or carried across - soulbound or not.
+Curse of Vanishing outranks it. A cursed item is gone at death, as vanilla has it, rather than kept safe in the head or carried across - soulbound or not.
 
-Treasure, on the same terms as Mending: found in chests, bought from librarians, never made at a
-table. The head-and-compass deal is the right one for nearly everything you own; this is for the
-few things you would rather not have to walk back for.
+Treasure, on the same terms as Mending: found in chests, bought from librarians, never made at a table. The head-and-compass deal is the right one for nearly everything you own; this is for the few things you would rather not have to walk back for.
 
-It is kept through the body rather than through this mod's own files. A dead player still has an
-inventory and the game saves it like any other, so a server that restarts while you are on the
-death screen has lost nothing.
+It is kept through the body rather than through this mod's own files. A dead player still has an inventory and the game saves it like any other, so a server that restarts while you are on the death screen has lost nothing.
 
 ## Dead Reckoning
 
-A potion that takes you back to where you died. Brew a chorus fruit onto a potion of healing -
-plain or strong - and that is what comes out, with the healing landing as you do. The compass
-tells you the way; this is for when the way is the problem.
+A potion that takes you back to where you died. Brew a chorus fruit onto a potion of healing - plain or strong - and that is what comes out, with the healing landing as you do. The compass tells you the way; this is for when the way is the problem.
 
 Each bottle is one jump, and the jumps run in the order you would want them:
 
 1. **Your newest head.** Then, bottle by bottle, each older head of yours.
-2. **Somebody else's head**, once you have stood at all of your own. A player's that has come
-   unlocked or a mob's, chosen at random, which is what the skulls scattered around a server are
-   for.
-3. **Nowhere.** Past all of those the potion has one place left to take you, and it kills you.
-   The head that death leaves is unlocked from the start. You are told before the swallow.
+2. **Somebody else's head**, once you have stood at all of your own. A player's that has come unlocked or a mob's, chosen at random, which is what the skulls scattered around a server are for.
+3. **Nowhere.** Past all of those the potion has one place left to take you, and it kills you. The head that death leaves is unlocked from the start. You are told before the swallow.
 
 Your own death starts the tour over from the newest head, which is the one that death just made.
 
-You land on the nearest place with room to stand and ground underfoot, found by walking out
-through open space from the head, so it is in the head's own cave rather than a nearer one on the
-far side of a wall. On top of the head wins a tie. Never in lava or fire. A head sealed in rock
-gets the nearest such spot through the rock instead. Landing under water gives you 45 seconds of
-water breathing, enough to empty the head and swim up.
+You land on the nearest place with room to stand and ground underfoot, found by walking out through open space from the head, so it is in the head's own cave rather than a nearer one on the far side of a wall. On top of the head wins a tie. Never in lava or fire. A head sealed in rock gets the nearest such spot through the rock instead. Landing under water gives you 45 seconds of water breathing, enough to empty the head and swim up.
 
-It is brewed by an ordinary datapack recipe into an ordinary potion carrying a colour, an effect,
-a name and a mark, rather than a new entry in the potion registry. To a player the two are the
-same bottle; the difference is that a registry entry would have to be on every client, and this
-mod's promise is that a vanilla client needs nothing.
+It is brewed by an ordinary datapack recipe into an ordinary potion carrying a colour, an effect, a name and a mark, rather than a new entry in the potion registry. To a player the two are the same bottle; the difference is that a registry entry would have to be on every client, and this mod's promise is that a vanilla client needs nothing.
 
-Brewing one takes a chorus fruit, which takes the End, which is a long way from the first death
-that needs one. So the chests of the places people die in carry a bottle now and then: dungeons,
-mineshafts, strongholds, temples, igloos, outposts, woodland mansions, shipwrecks, buried
-treasure, ruined portals, fortresses, bastions, end cities, ancient cities and trial chambers,
-one chest in five, one bottle. A find, not a supply.
+Brewing one takes a chorus fruit, which takes the End, which is a long way from the first death that needs one. So the chests of the places people die in carry a bottle now and then: dungeons, mineshafts, strongholds, temples, igloos, outposts, woodland mansions, shipwrecks, buried treasure, ruined portals, fortresses, bastions, end cities, ancient cities and trial chambers, one chest in five, one bottle. A find, not a supply.
 
 ## Commands
 
@@ -114,10 +89,7 @@ For ops, when the compass and the potion are not enough.
 | `/deadheads tp [player]` | Sends the player (yourself if none is named) back to where they last died |
 | `/deadheads where [player]` | Says where that is |
 
-"Where they last died" is the game's own record of the last death, which is written whether or
-not a head was left; where a head of theirs stands in that column, it is the head. The newest head
-stands in when there is no record. The landing is the potion's: the nearest place to stand, with
-water breathing under water.
+"Where they last died" is the game's own record of the last death, which is written whether or not a head was left; where a head of theirs stands in that column, it is the head. The newest head stands in when there is no record. The landing is the potion's: the nearest place to stand, with water breathing under water.
 
 ## Mob Heads
 
@@ -146,8 +118,7 @@ Player death heads never rot, and none of this touches them.
 
 ## Configuration
 
-With Pandorical installed, all three are on the Dead Heads page of the mod menu, for ops. The file
-is where they are kept, `config/dead-heads.properties`:
+With Pandorical installed, all three are on the Dead Heads page of the mod menu, for ops. The file is where they are kept, `config/dead-heads.properties`:
 
 | Key | Default | |
 |---|---|---|
