@@ -3,6 +3,9 @@
     "Dying leaves a head where you fell, holding everything you had, and a compass that knows the way back. Nothing scatters, nothing despawns, and for the first few minutes nobody but you can empty it."
   ],
   "versions": {
+    "1.2.2": [
+      "Release notes rewritten to read plainly; nothing in play changes."
+    ],
     "1.2.1": [
       "A world with hundreds of deaths in it starts again.",
       "The record had grown past what the game would read back, so a server with it stopped on the way up.",
