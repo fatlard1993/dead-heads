@@ -1,0 +1,42 @@
+{
+  "demo": {
+    "name": "Dead Heads",
+    "icon": "minecraft:player_head",
+    "about": [
+      "Dying leaves a head where you fell, holding everything you had, and you come back with a compass that points the way to it.",
+      "Light the TNT and stand beside it, then follow the compass back and right-click your head: everything goes back in the slot it came from."
+    ]
+  },
+  "pvp_preset": 1,
+  "needs": ["dead-heads"],
+  "preset": {
+    "name": "Dead Heads",
+    "icon": "minecraft:player_head",
+    "pvp": false,
+    "game_mode": "survival",
+    "entry_kit": [
+      {"slot": 0, "item": {"id": "minecraft:iron_sword", "count": 1}},
+      {"slot": 1, "item": {"id": "minecraft:iron_pickaxe", "count": 1}},
+      {"slot": 2, "item": {"id": "minecraft:tnt", "count": 2}},
+      {"slot": 3, "item": {"id": "minecraft:flint_and_steel", "count": 1}},
+      {"slot": 4, "item": {"id": "minecraft:cobblestone", "count": 32}},
+      {"slot": 5, "item": {"id": "minecraft:bread", "count": 8}},
+      {"slot": 8, "item": {"id": "minecraft:torch", "count": 16}},
+      {"slot": 12, "item": {"id": "minecraft:oak_planks", "count": 16}},
+      {"slot": 36, "item": {"id": "minecraft:iron_boots", "count": 1}},
+      {"slot": 37, "item": {"id": "minecraft:iron_leggings", "count": 1}},
+      {"slot": 38, "item": {"id": "minecraft:iron_chestplate", "count": 1}},
+      {"slot": 39, "item": {"id": "minecraft:iron_helmet", "count": 1}}
+    ],
+    "respawn_kit": "none",
+    "death_compasses": true,
+    "goal": "time",
+    "mobs": "off",
+    "life": 15,
+    "size": 2,
+    "world": "overworld",
+    "shape": "flat",
+    "biome": "minecraft:plains",
+    "weather": "clear"
+  }
+}
