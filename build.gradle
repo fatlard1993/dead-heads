@@ -31,20 +31,22 @@ dependencies {
 	// Resolved by the version each declares rather than a version written down here, because
 	// Gradle never clears build/libs and a name pinned by hand keeps compiling green against a jar
 	// an old build left behind.
-	def optional = { String name, String jarPrefix ->
-		def props = file("../${name}/gradle.properties")
+	//
+	// Each sibling's path is written out whole: the nightly release finds what to clone and build
+	// first by reading these paths, and one assembled from a variable is invisible to it.
+	def optional = { File props, String jarPrefix ->
 		if (!props.exists()) return null
 		def version = new Properties().with {
 			props.withInputStream { load(it) }
 			getProperty("mod_version")?.trim()
 		}
-		def jar = file("../${name}/build/libs/${jarPrefix}-${version}.jar")
+		def jar = new File(props.parentFile, "build/libs/${jarPrefix}-${version}.jar")
 		return jar.exists() ? jar : null
 	}
 
-	def mapJar = optional("map-plus-plus", "map-plus-plus")
-	def pandoricalJar = optional("pandorical", "pandorical")
-	def chestUtilsJar = optional("chest-utils", "chest-utils")
+	def mapJar = optional(file("../map-plus-plus/gradle.properties"), "map-plus-plus")
+	def pandoricalJar = optional(file("../pandorical/gradle.properties"), "pandorical")
+	def chestUtilsJar = optional(file("../chest-utils/gradle.properties"), "chest-utils")
 	if (mapJar != null && pandoricalJar != null && chestUtilsJar != null) {
 		compileOnly files(mapJar, pandoricalJar, chestUtilsJar)
 	} else {
