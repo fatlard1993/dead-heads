@@ -3,8 +3,10 @@ package justfatlard.dead_heads;
 import net.minecraft.util.Prediction;
 import com.mojang.authlib.GameProfile;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -13,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
@@ -34,6 +37,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
@@ -59,6 +63,8 @@ public class DeadHeadManager {
 	private static boolean dirty = false;
 	private static long lastSaveTimeMs = 0;
 	private static final long SAVE_INTERVAL_MS = 30_000;
+	/** Saves written off the server thread, one after another in the order they were made. */
+	private static CompletableFuture<Void> writing = CompletableFuture.completedFuture(null);
 
 	record DimPos(String dimension, BlockPos pos) {}
 
@@ -582,6 +588,7 @@ public class DeadHeadManager {
 			save(server);
 			dirty = false;
 		}
+		writing.join();
 		entries.clear();
 	}
 
@@ -718,10 +725,21 @@ public class DeadHeadManager {
 
 		root.put("entries", list);
 
+		writing = writing.thenRunAsync(() -> write(root, path), Util.ioPool());
+	}
+
+	/** Through a temporary file, so a crash mid-write leaves the last save whole. */
+	private static void write(CompoundTag root, Path path) {
 		try {
 			Files.createDirectories(path.getParent());
-			NbtIo.writeCompressed(root, path);
-		} catch (IOException e) {
+			Path temporary = path.resolveSibling(path.getFileName() + ".tmp");
+			NbtIo.writeCompressed(root, temporary);
+			try {
+				Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			} catch (AtomicMoveNotSupportedException e) {
+				Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
+			}
+		} catch (IOException | RuntimeException e) {
 			Main.LOGGER.error("[{}] Failed to save death head data: {}", Main.MOD_ID, e.getMessage());
 		}
 	}
