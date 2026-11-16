@@ -3,6 +3,9 @@
     "Dying leaves a head where you fell, holding everything you had, and a compass that knows the way back. Nothing scatters, nothing despawns, and for the first few minutes nobody but you can empty it."
   ],
   "versions": {
+    "1.2.5": [
+      "Death heads save off the server thread, and through a temporary file so a crash mid-save can't corrupt them."
+    ],
     "1.2.4": [
       "Drop changelog notes for changes nothing in the game shows."
     ],
