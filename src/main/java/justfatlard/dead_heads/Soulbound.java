@@ -25,8 +25,8 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
  * <p>A head holds everything and a compass finds it, and for nearly everything that is the right
  * deal: the walk back is the cost of dying. A few things are not worth the walk being possible at
  * all - the sword that took an evening to make, the map that is the only copy - and those get a
- * word on them that says so. One level, any item that takes an enchantment, found and not made:
- * treasure, on the same terms as Mending.
+ * word on them that says so. One level, any item that takes an enchantment, from the table's top
+ * row or from a chest or a librarian.
  *
  * <p>The keeping is done through the body. A dead player still has an inventory, and vanilla
  * saves it like any other; the trick is only that vanilla empties it first. So the soulbound

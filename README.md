@@ -58,7 +58,7 @@ One enchantment, one level, on anything that takes an enchantment: what carries 
 
 Curse of Vanishing outranks it. A cursed item is gone at death, as vanilla has it, rather than kept safe in the head or carried across - soulbound or not.
 
-Treasure, on the same terms as Mending: found in chests, bought from librarians, never made at a table. The head-and-compass deal is the right one for nearly everything you own; this is for the few things you would rather not have to walk back for.
+Offered by the enchanting table from its top row, on anything that takes an enchantment, and found in chests and bought from librarians too. The head-and-compass deal is the right one for nearly everything you own; this is for the few things you would rather not have to walk back for.
 
 It is kept through the body rather than through this mod's own files. A dead player still has an inventory and the game saves it like any other, so a server that restarts while you are on the death screen has lost nothing.
 
