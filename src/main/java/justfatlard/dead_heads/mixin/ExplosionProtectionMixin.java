@@ -32,8 +32,8 @@ public abstract class ExplosionProtectionMixin {
 
 	@ModifyVariable(method = "interactWithBlocks", at = @At("HEAD"), argsOnly = true)
 	private List<BlockPos> deadHeads$spareLockedHeads(List<BlockPos> positions) {
-		// With Pandorical, its one blast hook spares the heads instead; see integration.BlastGuard
-		if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("pandorical")) return positions;
+		// Where Pandorical's one blast hook took the heads on, it spares them instead
+		if (justfatlard.dead_heads.integration.BlastGuard.registered()) return positions;
 		List<BlockPos> spared = null;
 
 		for (BlockPos pos : positions) {
