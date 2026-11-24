@@ -36,6 +36,9 @@
     "chest-utils": "*",
     "pandorical": "*"
   },
+  "conflicts": {
+    "universal-graves": "*"
+  },
   "custom": {
     "modmenu": {
       "links": {

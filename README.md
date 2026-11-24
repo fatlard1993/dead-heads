@@ -134,6 +134,10 @@ Dead Heads runs server-side and works on a vanilla client. [Pandorical](https://
 
 Map++ and Chest Utils integrations are likewise optional and guarded — absent, their features simply are not there.
 
+## Works with other mods
+
+Universal Graves keeps a death's drops too, so with it installed a death could leave both a grave and a head; its manifest lists it as a conflict, so the loader says so at startup.
+
 ## Development
 
 Installing and the map of the source are in [DEVELOPMENT.md](DEVELOPMENT.md).
