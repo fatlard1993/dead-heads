@@ -3,6 +3,11 @@
     "Dying leaves a head where you fell, holding everything you had, and a compass that knows the way back. Nothing scatters, nothing despawns, and for the first few minutes nobody but you can empty it."
   ],
   "versions": {
+    "1.2.7": [
+      "The mods that do the same job are listed as conflicts, so the loader says so at startup, and the readme says why.",
+      "Locked heads are spared from explosions through Pandorical's one blast hook where it is installed, the patch of its own kept for a server without it.",
+      "An older Pandorical no longer stops the server, and the patch of its own spares locked heads until Pandorical's blast hook has taken them on."
+    ],
     "1.2.6": [
       "Soulbound comes from the enchanting table's top row too."
     ],
