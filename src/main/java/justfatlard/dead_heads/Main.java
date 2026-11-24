@@ -33,6 +33,7 @@ public class Main implements ModInitializer {
 		if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("pandorical")) {
 			DeadHeadsConfig.menu();
 			justfatlard.dead_heads.integration.HeadInteraction.register();
+			justfatlard.dead_heads.integration.BlastGuard.register();
 		}
 
 		net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback.EVENT.register(
