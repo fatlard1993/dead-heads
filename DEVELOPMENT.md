@@ -11,6 +11,7 @@ For what the mod is and how it plays, see [README.md](README.md).
 | `Kept.java` | One item and the slot it came out of |
 | `Soulbound.java` | The enchantment, and carrying what wears it across the respawn |
 | `DeadReckoning.java` | The potion: which head is next, and getting you there |
+| `Footing.java` | Where each player last stood, what counts as ground, and a floor over the void |
 | `ReckoningLoot.java` | The potion in structure chests |
 | `DeadHeadCommands.java` | `/deadheads tp` and `where`, for ops |
 | `DeadHeadsConfig.java` | The properties file, and its page in Pandorical's mod menu |

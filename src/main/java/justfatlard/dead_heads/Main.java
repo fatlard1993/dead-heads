@@ -42,6 +42,7 @@ public class Main implements ModInitializer {
 		ServerLifecycleEvents.SERVER_STARTED.register(DeadHeadManager::onServerStarted);
 		ServerLifecycleEvents.SERVER_STOPPING.register(DeadHeadManager::onServerStopping);
 		ServerTickEvents.END_SERVER_TICK.register(DeadHeadManager::tick);
+		ServerTickEvents.END_SERVER_TICK.register(Footing::track);
 		UseBlockCallback.EVENT.register(DeadHeadManager::onUseBlock);
 		PlayerBlockBreakEvents.BEFORE.register(DeadHeadManager::onBlockBreakBefore);
 		PlayerBlockBreakEvents.AFTER.register(DeadHeadManager::onBlockBreakAfter);

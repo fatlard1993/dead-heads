@@ -21,12 +21,14 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * A potion that takes you back to where you died.
@@ -121,11 +123,16 @@ public final class DeadReckoning {
 			return;
 		}
 
-		BlockPos feet = standingSpot(to, head.pos());
+		BlockPos target = head.pos().atY(Mth.clamp(head.pos().getY(), to.getMinY() + 1, to.getMaxY() - 1));
+		Footing.floorUnder(to, target);
+		BlockPos feet = standingSpot(to, target);
 
 		from.playSound(null, player.getX(), player.getY(), player.getZ(),
 			SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.0F);
 		player.stopRiding();
+		// A fall the player is in the middle of would otherwise land on arrival
+		player.resetFallDistance();
+		player.setDeltaMovement(Vec3.ZERO);
 		player.teleportTo(to, feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5, Set.of(),
 			player.getYRot(), player.getXRot(), true);
 		to.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -151,9 +158,9 @@ public final class DeadReckoning {
 	 *
 	 * <p>Walked out to through open space from the head, not measured through rock, so the spot is
 	 * in the same cave as the head rather than a nearer one on the far side of a wall. On top of
-	 * the head counts, and wins a tie: a skull is a low block, and on it is at the spot. A head
-	 * sealed in has no open way out, so then it is the nearest spot through the rock, and failing
-	 * that the first one straight up.
+	 * the head counts while something is under it, and wins a tie: a skull is a low block, and on
+	 * it is at the spot. A head sealed in has no open way out, so then it is the nearest spot
+	 * through the rock, and failing that the first one straight up.
 	 */
 	private static BlockPos standingSpot(ServerLevel level, BlockPos head) {
 		BlockPos walked = walkToStand(level, head);
@@ -202,7 +209,7 @@ public final class DeadReckoning {
 	}
 
 	private static boolean standable(ServerLevel level, BlockPos feet) {
-		return roomToStand(level, feet) && ground(level, feet.below());
+		return roomToStand(level, feet) && Footing.solid(level, feet.below());
 	}
 
 	private static boolean roomToStand(ServerLevel level, BlockPos feet) {
@@ -214,10 +221,5 @@ public final class DeadReckoning {
 		BlockState state = level.getBlockState(pos);
 		return state.getCollisionShape(level, pos).isEmpty() && !state.getFluidState().is(FluidTags.LAVA)
 			&& !state.is(BlockTags.FIRE);
-	}
-
-	/** Something to stand on, which lava is not. */
-	private static boolean ground(ServerLevel level, BlockPos pos) {
-		return !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
 	}
 }

@@ -74,7 +74,7 @@ Each bottle is one jump, and the jumps run in the order you would want them:
 
 Your own death starts the tour over from the newest head, which is the one that death just made.
 
-You land on the nearest place with room to stand and ground underfoot, found by walking out through open space from the head, so it is in the head's own cave rather than a nearer one on the far side of a wall. On top of the head wins a tie. Never in lava or fire. A head sealed in rock gets the nearest such spot through the rock instead. Landing under water gives you 45 seconds of water breathing, enough to empty the head and swim up.
+You land on the nearest place with room to stand and ground underfoot, found by walking out through open space from the head, so it is in the head's own cave rather than a nearer one on the far side of a wall. On top of the head wins a tie, while something holds the head up: emptying it takes the block from under your feet. Never in lava or fire. A head with nothing under it down to the void gets a block of obsidian beneath it first, and a fall you were in the middle of when you drank does not come with you. A head sealed in rock gets the nearest such spot through the rock instead. Landing under water gives you 45 seconds of water breathing, enough to empty the head and swim up.
 
 It is brewed by an ordinary datapack recipe into an ordinary potion carrying a colour, an effect, a name and a mark, rather than a new entry in the potion registry. To a player the two are the same bottle; the difference is that a registry entry would have to be on every client, and this mod's promise is that a vanilla client needs nothing.
 
@@ -89,7 +89,7 @@ For ops, when the compass and the potion are not enough.
 | `/deadheads tp [player]` | Sends the player (yourself if none is named) back to where they last died |
 | `/deadheads where [player]` | Says where that is |
 
-"Where they last died" is the game's own record of the last death, which is written whether or not a head was left; where a head of theirs stands in that column, it is the head. The newest head stands in when there is no record. The landing is the potion's: the nearest place to stand, with water breathing under water.
+"Where they last died" is the game's own record of the last death, which is written whether or not a head was left; where a head of theirs stands in that column, it is the head. The newest head stands in when there is no record, and for a death below the world, whose head is where they last stood rather than in that column. The landing is the potion's: the nearest place to stand, with water breathing under water.
 
 ## Mob Heads
 
@@ -110,6 +110,7 @@ Player death heads never rot, and none of this touches them.
 - **It respects `keepInventory`.** Creative, spectator, or the game rule on, and this mod does nothing at all.
 - **A death in water leaves the head on the bottom** beneath you, and water and lava flow around a player's head instead of washing it away. Mob heads are not held dry: at a farm that would dam the stream carrying the drops.
 - **Out of the fluid otherwise.** Anywhere else the head goes at the death spot or the first open block above it that is not fluid, so it climbs out of a lava pool onto its surface. Where nothing within ten blocks up will do, it goes where you died, lava or not, rather than your inventory going into it.
+- **Falling out of the world leaves the head where you last stood** on solid ground, not floating over the void at the bottom of the world, where emptying it would drop you straight back in. Should there be nowhere on record, the head gets a block of obsidian under it. A mob that falls out of the world leaves no head; its drops fall into the void as in vanilla.
 - **Two deaths cannot share a spot.** A tracked head is never a candidate position for the next one, which is rare for players and routine at a mob grinder.
 - **Extra inventory slots come too.** Slots other mods add to the inventory screen are emptied into the head with everything else, and put back on recovery. Left alone they would be neither dropped nor kept: the store behind them is not carried across a respawn, and an equipped map would simply stop existing.
 - **Heads in unloaded chunks are still heads.** The record, not the world, is what a compass asks — so a compass does not expire because its owner walked away.

@@ -2,13 +2,14 @@
 	"schemaVersion": 1,
 	"id": "dead-heads-gametest",
 	"version": "1.0.0",
-	"name": "Dead Heads smoke test",
-	"description": "Loads the mod, joins a world, and fails if anything on the way threw.",
+	"name": "Dead Heads gametests",
+	"description": "Loads the mod and joins a world; a death below the world and the trip back to a head over the void.",
 	"license": "MIT",
 	"environment": "*",
 	"entrypoints": {
 		"fabric-client-gametest": [
-			"justfatlard.dead_heads.gametest.SmokeTest"
+			"justfatlard.dead_heads.gametest.SmokeTest",
+			"justfatlard.dead_heads.VoidDeaths"
 		]
 	},
 	"depends": {

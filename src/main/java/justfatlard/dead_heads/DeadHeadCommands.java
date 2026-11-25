@@ -91,6 +91,9 @@ public final class DeadHeadCommands {
 		if (recorded.isEmpty()) return heads.isEmpty() ? Optional.empty() : Optional.of(heads.get(0));
 
 		GlobalPos died = recorded.get();
+		// A death below the world left its head where the player last stood, in another column
+		var diedIn = player.level().getServer().getLevel(died.dimension());
+		if (diedIn != null && died.pos().getY() < diedIn.getMinY() && !heads.isEmpty()) return Optional.of(heads.get(0));
 		for (GlobalPos head : heads) {
 			if (head.dimension().equals(died.dimension())
 					&& head.pos().getX() == died.pos().getX() && head.pos().getZ() == died.pos().getZ()) {

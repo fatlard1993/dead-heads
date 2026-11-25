@@ -240,6 +240,16 @@ public class DeadHeadManager {
 
 		ServerLevel level = player.level();
 		BlockPos deathPos = player.blockPosition();
+		ServerLevel fellFrom = null;
+		if (deathPos.getY() < level.getMinY()) {
+			GlobalPos ground = Footing.lastGround(player.getUUID());
+			ServerLevel there = ground == null ? null : level.getServer().getLevel(ground.dimension());
+			if (there != null) {
+				fellFrom = there;
+				level = there;
+				deathPos = ground.pos();
+			}
+		}
 
 		// A head is the better thing for the compass to point at, but a death always has a
 		// place. The two deaths that produced no compass at all were the two where no head was
@@ -266,6 +276,7 @@ public class DeadHeadManager {
 		// A head that starts unlocked starts as what an unlocked head turns into.
 		Block headBlock = unlocked ? Blocks.SKELETON_SKULL : Blocks.PLAYER_HEAD;
 		BlockState headState = headBlock.defaultBlockState().setValue(SkullBlock.ROTATION, rotation);
+		Footing.floorUnder(level, headPos);
 		level.setBlock(headPos, headState, Block.UPDATE_ALL);
 
 		if (!unlocked && level.getBlockEntity(headPos) instanceof SkullBlockEntity skull) {
@@ -288,8 +299,11 @@ public class DeadHeadManager {
 		));
 		dirty = true;
 
+		String at = headPos.getX() + ", " + headPos.getY() + ", " + headPos.getZ();
+		if (fellFrom != null && fellFrom != player.level()) at += " in the " + fellFrom.dimension().identifier().getPath();
 		player.sendSystemMessage(Component.literal(
-			"Your items are stored in your head at " + headPos.getX() + ", " + headPos.getY() + ", " + headPos.getZ()
+			(fellFrom != null ? "You fell out of the world. Your items are stored in your head where you last stood, at "
+				: "Your items are stored in your head at ") + at
 				+ (unlocked ? ", and it is already anyone's" : "")
 		));
 	}
@@ -311,7 +325,8 @@ public class DeadHeadManager {
 		if (!(mob.level() instanceof ServerLevel level)) return;
 
 		BlockPos deathPos = mob.blockPosition();
-		BlockPos headPos = findHeadPosition(level, deathPos, true);
+		// Below the world there is nothing to put a head on, and nobody should go to fetch it
+		BlockPos headPos = deathPos.getY() < level.getMinY() ? null : findHeadPosition(level, deathPos, true);
 
 		if (headPos == null) {
 			dropItems(level, deathPos, items);
